@@ -407,6 +407,48 @@ class Handler(BaseHTTPRequestHandler):
                 from pocket.product_tour import tour_html
 
                 return self._html(tour_html())
+        # Sovereign forge companion site (git vault vision)
+        if path in ("/forge", "/forge/", "/git", "/git/"):
+            from pocket.forge_web import forge_landing_html
+
+            return self._html(forge_landing_html())
+        # Auro meaning browser piece (auro.js + model.json)
+        if path in ("/auro", "/auro/"):
+            from pocket.auro_meaning import meaning_root
+
+            index = meaning_root() / "auro_web" / "index.html"
+            if index.is_file():
+                return self._html(index.read_text(encoding="utf-8"))
+            return self._html("<h1>Auro web piece missing</h1><p>Unpack vendor/auro_meaning</p>")
+        if path.startswith("/auro/"):
+            from pocket.auro_meaning import meaning_root
+
+            rel = path[len("/auro/") :].lstrip("/")
+            if ".." in rel or rel.startswith("/"):
+                return self._json(400, {"error": "bad path"})
+            fp = meaning_root() / "auro_web" / rel
+            if not fp.is_file():
+                return self._json(404, {"error": "not found", "path": rel})
+            data = fp.read_bytes()
+            ctype = "application/octet-stream"
+            if rel.endswith(".js"):
+                ctype = "text/javascript; charset=utf-8"
+            elif rel.endswith(".json"):
+                ctype = "application/json"
+            elif rel.endswith(".html"):
+                ctype = "text/html; charset=utf-8"
+            elif rel.endswith(".mjs"):
+                ctype = "text/javascript; charset=utf-8"
+            elif rel.endswith(".css"):
+                ctype = "text/css; charset=utf-8"
+            self.send_response(200)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Access-Control-Allow-Origin", self._cors_origin())
+            self._sec_headers()
+            self.end_headers()
+            self.wfile.write(data)
+            return
         # Get / install guide (shareable marketing URL)
         if path in ("/get", "/get/", "/start", "/install", "/install/"):
             from pocket.marketing_landing import get_app_html
@@ -578,6 +620,21 @@ class Handler(BaseHTTPRequestHandler):
             if (u.get("role") or "none") == "none":
                 return self._json(401, {"ok": False, "error": "auth required"})
             return self._json(200, {"ok": True, "user": u})
+        if path in ("/v1/admin/invites", "/v1/auth/invites"):
+            from pocket.users import list_invites, list_users
+
+            p = rbac_principal(self.headers)
+            if not is_admin(p):
+                return self._json(403, {"ok": False, "error": "admin only"})
+            return self._json(
+                200,
+                {
+                    "ok": True,
+                    "invites": list_invites(),
+                    "users": list_users(),
+                    "note": "Users create their OWN accounts with a seat key. Owner stays owner.",
+                },
+            )
         if path == "/v1/live":
             return self._json(200, probe_all())
         if path == "/v1/usage":
@@ -888,9 +945,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, read_inbox(aid))
         if path == "/v1/mesh/channel":
             from pocket.mesh_disk import channel_tail
-            from urllib.parse import parse_qs as _pqs
 
-            q = _pqs(urlparse(self.path).query)
+            q = parse_qs(urlparse(self.path).query)
             ch = (q.get("name") or ["freq-0"])[0]
             return self._json(200, channel_tail(ch))
         if path == "/v1/bridge":
@@ -1166,6 +1222,57 @@ class Handler(BaseHTTPRequestHandler):
             from pocket.task_market import list_open
 
             return self._json(200, {"ok": True, "open": list_open()})
+        if path in ("/v1/git/repos", "/v1/forge/repos"):
+            from pocket.sovereign_git import list_repos
+
+            return self._json(200, list_repos())
+        if path.startswith("/v1/git/repos/") and path.endswith("/zip"):
+            from pocket.sovereign_git import export_zip
+
+            name = path[len("/v1/git/repos/") : -len("/zip")].strip("/")
+            r = export_zip(name)
+            if not r.get("ok"):
+                return self._json(404, r)
+            try:
+                data = Path(r["path"]).read_bytes()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/zip")
+                self.send_header("Content-Disposition", f'attachment; filename="{r["name"]}"')
+                self.send_header("Content-Length", str(len(data)))
+                self.send_header("Access-Control-Allow-Origin", self._cors_origin())
+                self._sec_headers()
+                self.end_headers()
+                self.wfile.write(data)
+                return
+            except Exception as e:
+                return self._json(500, {"ok": False, "error": str(e)})
+        if path.startswith("/v1/git/exports/"):
+            name = path.split("/v1/git/exports/", 1)[-1]
+            fp = Path.home() / ".pocket" / "git_exports" / name
+            if not fp.is_file() or ".." in name or "/" in name or "\\" in name:
+                return self._json(404, {"ok": False, "error": "export not found"})
+            data = fp.read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/zip")
+            self.send_header("Content-Disposition", f'attachment; filename="{fp.name}"')
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Access-Control-Allow-Origin", self._cors_origin())
+            self._sec_headers()
+            self.end_headers()
+            self.wfile.write(data)
+            return
+        if path in ("/v1/record/status", "/v1/screen/status"):
+            from pocket.screen_record import record_status
+
+            return self._json(200, record_status())
+        if path in ("/v1/auro", "/v1/auro/status", "/v1/auro/meaning"):
+            from pocket.auro_meaning import status as auro_meaning_status
+            from pocket.auro14b_bridge import status as auro_host_status
+
+            return self._json(
+                200,
+                {"ok": True, "meaning": auro_meaning_status(), "host": auro_host_status()},
+            )
         if path in ("/v1/agent-bus", "/v1/mesh/bus"):
             from pocket.mesh_disk import channel_tail, decrypt_body
 
@@ -1523,6 +1630,24 @@ class Handler(BaseHTTPRequestHandler):
             if not ok:
                 return self._json(403, {"ok": False, "error": msg})
             return self._json(200, rotate_invite())
+
+        if path in ("/v1/admin/invites", "/v1/auth/invites/mint"):
+            # Mint a cryptographic seat key — raw key returned once; users create OWN accounts
+            from pocket.users import mint_seat_invite
+
+            p = rbac_principal(self.headers)
+            ok, msg = allow_admin_action(p, "rotate_invite")
+            if not ok:
+                return self._json(403, {"ok": False, "error": msg})
+            return self._json(
+                200,
+                mint_seat_invite(
+                    label=body.get("label") or body.get("name") or "seat",
+                    max_uses=int(body.get("max_uses") or 1),
+                    expires_days=int(body.get("expires_days") or 30),
+                    created_by=p.get("user") or "admin",
+                ),
+            )
 
         if path == "/v1/auth/me":
             u = rbac_principal(self.headers)
@@ -1990,6 +2115,62 @@ class Handler(BaseHTTPRequestHandler):
                 channel=body.get("channel") or "freq-coding",
                 kind=body.get("kind") or "note",
                 encrypt=body.get("encrypt", True),
+            )
+            return self._json(200, r)
+
+        if path in ("/v1/git/create", "/v1/forge/create"):
+            from pocket.sovereign_git import create_repo
+
+            r = create_repo(
+                body.get("name") or body.get("repo") or "project",
+                description=body.get("description") or body.get("desc") or "",
+                private=bool(body.get("private", True)),
+                bare=bool(body.get("bare")),
+            )
+            return self._json(200, r)
+
+        if path in ("/v1/record/start", "/v1/screen/start"):
+            from pocket.screen_record import record_start
+
+            return self._json(200, record_start(label=body.get("label") or "demo"))
+
+        if path in ("/v1/record/stop", "/v1/screen/stop"):
+            from pocket.screen_record import record_stop
+
+            return self._json(200, record_stop())
+
+        if path in ("/v1/cowork", "/v1/work"):
+            from pocket.cowork import run_cowork
+
+            r = run_cowork(
+                body.get("prompt") or body.get("text") or body.get("goal") or "",
+                record=body.get("record"),
+                agent=body.get("agent") or "COWORK",
+            )
+            return self._json(200, {"ok": r.get("ok"), "result": r})
+
+        if path in ("/v1/ghost", "/v1/ghost/math"):
+            from pocket.ghost_math import run_ghost
+
+            text, err, eng = run_ghost(body.get("prompt") or body.get("text") or "")
+            return self._json(200, {"ok": not bool(err), "result": text, "error": err, "engine": eng})
+
+        if path in ("/v1/auro/generate", "/v1/auro/meaning/generate"):
+            from pocket.auro_meaning import generate_bytes_greedy, generate_ids
+
+            if body.get("ids") is not None:
+                ids = body.get("ids") or []
+                r = generate_ids([int(x) for x in ids], max_new=int(body.get("max_new") or 16))
+            else:
+                r = generate_bytes_greedy(body.get("prompt") or body.get("text") or "abc", max_new=int(body.get("max_new") or 32))
+            return self._json(200, r)
+
+        if path in ("/v1/auro/train", "/v1/auro/meaning/train"):
+            from pocket.auro_meaning import train_text_if_available
+
+            r = train_text_if_available(
+                body.get("corpus") or body.get("text") or body.get("prompt") or "",
+                steps=int(body.get("steps") or 200),
             )
             return self._json(200, r)
 

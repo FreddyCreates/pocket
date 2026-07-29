@@ -508,6 +508,8 @@ body.device-computer .rail{display:flex!important}
       <a href="/desk" class="on-desk">Desktop</a>
       <a href="/developers">API</a>
       <a href="/studio">Studio</a>
+      <a href="/forge">Forge</a>
+      <a href="/auro/">Auro</a>
       <a href="#" id="navBrowser" onclick="event.preventDefault();openBrowser('/tour')">Browser</a>
     </nav>
     <span class="chip device-chip computer" id="deviceChip" title="Client device">Computer</span>
@@ -531,6 +533,8 @@ body.device-computer .rail{display:flex!important}
       <button onclick="newSess('grok')"><b>Grok</b><small>Code &amp; research</small></button>
       <button onclick="newSess('claude')"><b>Claude</b><small>If installed</small></button>
       <button onclick="newSess('offload')" title="Queue real-world work; free the chat"><b>Offload</b><small>Real-world queue · proof packs</small></button>
+      <button onclick="newSess('cowork')" title="Desktop embody · demos · screen record"><b>Cowork</b><small>Desk + record · not deep code</small></button>
+      <button onclick="newSess('git')" title="Sovereign git vault inside POCKET"><b>Git</b><small>Vault repos · zip export</small></button>
       <button onclick="newSess('plan')"><b>Plan</b><small>Planning only</small></button>
       <button onclick="newSess('nexus')"><b>NEXUS</b><small>MERIDIAN intelligence</small></button>
       <button onclick="newSess('mesie')"><b>MESIE</b><small>Spectral · colony compute</small></button>
@@ -740,25 +744,26 @@ body.device-computer .rail{display:flex!important}
 <div class="gate" id="loginGate">
   <div class="card">
     <h2>Sign in</h2>
-    <p id="loginBlurb">Operator login. Open <code style="color:var(--accent);font-size:12px">C:\\Users\\Medin\\.pocket\\ACCESS.txt</code> — user is usually <b style="color:var(--fg)">pocket</b> and the long password on the Password line.</p>
+    <p id="loginBlurb"><b style="color:var(--fg)">Owner</b> uses ACCESS.txt. <b style="color:var(--fg)">Members</b> use the username/password they created — not the owner login. Register makes a <em>new seat</em> with a seat invite key (SHA-backed).</p>
     <div class="tabs">
       <button type="button" class="on" id="tabLogin" onclick="setAuthTab('login')">Sign in</button>
-      <button type="button" id="tabReg" onclick="setAuthTab('register')">Register</button>
+      <button type="button" id="tabReg" onclick="setAuthTab('register')">Create my seat</button>
     </div>
     <div id="loginPane">
-      <label>Username</label>
-      <input id="loginUser" value="pocket" placeholder="pocket" autocomplete="username"/>
-      <label>Password (from ACCESS.txt)</label>
-      <input id="loginPass" type="password" autocomplete="current-password" placeholder="from ACCESS.txt"/>
+      <label>Your username</label>
+      <input id="loginUser" value="" placeholder="you (or owner pocket)" autocomplete="username"/>
+      <label>Your password</label>
+      <input id="loginPass" type="password" autocomplete="current-password" placeholder="your account password"/>
       <label style="display:flex;gap:8px;align-items:center;margin-top:8px"><input type="checkbox" id="loginRemember" checked/> Remember session on this device</label>
       <button class="primary" id="loginBtn" type="button">Continue</button>
     </div>
     <div id="regPane" style="display:none">
-      <label>Invite code</label>
-      <input id="regInvite" placeholder="from operator INVITE.txt"/>
-      <label>Username</label>
-      <input id="regUser" autocomplete="username"/>
-      <label>Password (min 8)</label>
+      <p style="font-size:12px;color:var(--muted);margin:0 0 10px;line-height:1.45">This creates <b style="color:var(--fg)">your own</b> account. You do not log into the owner. Paste the <b style="color:var(--fg)">pk_seat_…</b> key the owner minted for you.</p>
+      <label>Seat invite key</label>
+      <input id="regInvite" placeholder="pk_seat_… (not the owner password)"/>
+      <label>Choose username</label>
+      <input id="regUser" autocomplete="username" placeholder="your name"/>
+      <label>Choose password (min 8)</label>
       <input id="regPass" type="password" autocomplete="new-password"/>
       <label>Display name</label>
       <input id="regDisplay" placeholder="optional"/>
@@ -766,7 +771,7 @@ body.device-computer .rail{display:flex!important}
         <input type="checkbox" id="regTerms" style="margin-top:3px"/>
         <span>I accept the <a href="/v1/legal" target="_blank" rel="noopener">terms &amp; trust model</a> (jobs run on the host PC; not multi-tenant SaaS).</span>
       </label>
-      <button class="primary" id="regBtn" type="button">Create account</button>
+      <button class="primary" id="regBtn" type="button">Create my seat</button>
     </div>
     <div class="err" id="loginErr"></div>
   </div>
@@ -1839,6 +1844,9 @@ function setPresets(mode){
     codex:[['Ship code','Implement one concrete production fix in this workspace, run the smallest check, summarize the diff.'],['Continue','Continue from where you left off — code first, not a research essay.'],['Health','List top risks and missing tests, then fix the highest-risk one if small.']],
     grok:[['Ship code','Implement one useful code improvement, verify briefly, report files changed.'],['Explain','Summarize this project in 8 bullets.'],['Stop & reorganize','Stop prior work. Inventory production gaps and ship one concrete code fix.']],
     offload:[['Desk proof','capability snapshot then screenshot then note: operator away embodiment sprint'],['Open edge','open edge https://pocket.medinatechlabs.net/'],['Refresh workspace','workspace_refresh for parallax then screenshot']],
+    cowork:[['Record demo','record demo: open edge https://pocket.medinatechlabs.net/ then screenshot'],['Desk tour','open notepad then screenshot then deliver note: cowork tour'],['No record','without record: capability snapshot and screenshot']],
+    git:[['Create repo','create repo my-app'],['List','list repos'],['Help','help']],
+    ghost:[['Hash chain','chain hash a|b|c'],['Phi','phi 21'],['Digest','digest this prompt']],
     plan:[['Next features','Plan only: next 5 product features, ordered, with risks. No code.'],['Phone UX','Plan only: improve mobile UX. No implementation.']],
     term:[['List','Get-ChildItem'],['Python','python --version'],['Git','git status']],
     shell:[['Dir','dir'],['Git','git status']],

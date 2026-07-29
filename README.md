@@ -1,75 +1,71 @@
-# POCKET
+<p align="center">
+  <img src="docs/brand/pocket-mark.svg" width="120" alt="POCKET"/>
+</p>
 
-**Multi-agent host co-pilot** — real Codex / Grok / Claude / desk agents on *your* machine.  
-Phone remote · sellable AI API · Edge desktop app · paper/testnet-first when driving PARALLAX.
+<h1 align="center">POCKET</h1>
 
-Lab: **ItsNotAI Labs / Medina Tech Labs**
+<p align="center">
+  <b>Multi-agent host co-pilot</b> — your machine, your seats, real agents.<br/>
+  Edge app · Electron · Cloudflare desk · invite-gated multi-user
+</p>
 
-## Get POCKET
+<p align="center">
+  <a href="https://github.com/FreddyCreates/pocket/releases">Releases</a> ·
+  <a href="https://github.com/FreddyCreates/pocket-app">User app hub</a> ·
+  <a href="docs/SHIP_FOR_USERS.md">Ship guide</a> ·
+  <a href="docs/MULTI_USER.md">Multi-user</a>
+</p>
 
-| Who | How |
-|-----|-----|
-| **Windows users** | Download the desktop app: [releases](https://github.com/FreddyCreates/pocket/releases) or host `/download` |
-| **Operators (this host)** | Clone + run (below) |
-| **Phone → your PC** | Open your public tunnel (e.g. `https://pocket.medinatechlabs.net`) with invite credentials |
+---
 
-```text
-Landing  →  /get (install guide)
-         →  /download  (Windows .exe)
-         →  /desk      (multi-agent console)
-         →  /developers (API)
-```
+## Get it
 
-## Quick start (operator host)
-
-**Requirements:** Python 3.11+, Windows recommended. Optional: [Grok CLI](https://x.ai), [Codex CLI](https://github.com/openai/codex).
-
-```powershell
-git clone https://github.com/FreddyCreates/pocket.git
-cd pocket
-$env:PYTHONPATH = "$PWD\src"
-python -m pocket serve --host 127.0.0.1 --port 8787
-```
-
-Open **http://127.0.0.1:8787/desk**
-
-Or:
+| Door | Who | Link |
+|------|-----|------|
+| **Edge app (local)** | You on this PC | Desktop shortcut **POCKET** (after ship install) |
+| **Electron** | Download users | [Releases](https://github.com/FreddyCreates/pocket/releases) · host `/download` |
+| **Cloud desk** | Phone / remote | your tunnel e.g. `https://pocket.medinatechlabs.net/desk` |
+| **Source (operators)** | Host builders | this repo |
 
 ```powershell
-.\Start-POCKET.ps1
+# Operator PC — one-time ship install (shortcuts + always-on)
+powershell -ExecutionPolicy Bypass -File scripts\Install-POCKET-Ship.ps1
+# Then double-click Desktop "POCKET"
 ```
 
-Password / access file (local, not in git): `%USERPROFILE%\.pocket\ACCESS.txt`
+## Multi-user (not “log into owner”)
 
-## What you get
+- **Owner** = you (`ACCESS.txt` / admin). Stays owner.
+- **Members** get a **`pk_seat_…` cryptographic key** (SHA-256 stored server-side).
+- They open **Create my seat**, pick **their** username + password.
+- They never use your password. Invite ≠ login.
 
-- **Agents:** Codex · Grok · Claude · Plan · Offload · ARCHON · Browser · Desktop · NEXUS · MESIE · …
-- **AI workspace:** auto context + summary so agents don’t re-scan the tree every turn
-- **Offload / embodiment:** background real-world tasks + proof packs
-- **Agent bus:** hashed mesh envelopes for multi-agent handoffs
-- **Desktop app:** Electron portable under `releases/desktop/` (build scripts in `desktop-electron/`)
-- **API:** `sk_pocket_` keys · headless agents · metering (`docs/AI_API.md`)
+```http
+POST /v1/admin/invites
+{ "label": "alice", "max_uses": 1 }
+→ { "invite_key": "pk_seat_…", "message": "Give to user; they create OWN account" }
+```
 
-## Docs
+See [docs/MULTI_USER.md](docs/MULTI_USER.md).
 
-| Doc | Topic |
-|-----|--------|
-| [PRODUCT.md](PRODUCT.md) | Product surfaces |
-| [docs/AI_WORKSPACE.md](docs/AI_WORKSPACE.md) | Token-saving AI workspace |
-| [docs/EMBODIMENT_OFFLOAD.md](docs/EMBODIMENT_OFFLOAD.md) | Real-world offload |
-| [docs/PRODUCTION.md](docs/PRODUCTION.md) | Production A→Z (if present) |
-| [USE_NOW.md](USE_NOW.md) | Operator runbook |
+## Product surfaces
 
-## Safety
+- **Desk** — Codex · Grok · Claude · Cowork · Git · Offload · Auro  
+- **Forge** — `/forge` sovereign git vault  
+- **Auro** — `/auro/` browser meaning piece  
+- **API** — `/developers` sellable agents  
 
-- App allowlist · shell policy · URL policy · audit log  
-- **No secrets in this repo** — keys and access stay under `~/.pocket/`  
-- Financial paths (e.g. PARALLAX) stay **paper/testnet-first** unless you gate otherwise  
+## Always-on
 
-## Version
+Host should stay up. Shortcuts call **ensure-if-down** only — they do not thrash Cloudflare.
 
-Ship channel: **desktop 2.0.x-alpha** · host multi-agent desk active.
+```powershell
+scripts\Ensure-POCKET-Up.ps1   # start only if down
+scripts\Start-POCKET-AlwaysOn.ps1
+```
 
 ## License
 
-See [LICENSE](LICENSE) if present; otherwise all rights reserved pending license file.
+MIT — see [LICENSE](LICENSE).
+
+**Lab:** ItsNotAI Labs / Medina Tech Labs

@@ -51,7 +51,9 @@ def health_json() -> Dict[str, Any]:
 
 
 def ensure_server(*, wait_sec: float = 30.0) -> Dict[str, Any]:
-    if _health_ok():
+    """Start host only if down. Never kill an existing healthy process."""
+    if _port_open() or _health_ok():
+        # Port already taken by a live host — do not spawn a second server
         return {"ok": True, "already": True, "url": BASE, "pid": None}
 
     src = Path(__file__).resolve().parents[1]
@@ -61,13 +63,17 @@ def ensure_server(*, wait_sec: float = 30.0) -> Dict[str, Any]:
     if nexus.is_dir():
         env["PYTHONPATH"] = str(nexus) + os.pathsep + env["PYTHONPATH"]
         env["NEXUS_ROOT"] = str(nexus)
+    if not env.get("POCKET_PUBLIC_URL"):
+        env["POCKET_PUBLIC_URL"] = "https://pocket.medinatechlabs.net"
 
     creation = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000) if sys.platform == "win32" else 0
     log = Path.home() / ".pocket" / "desktop-serve.log"
     log.parent.mkdir(parents=True, exist_ok=True)
     out_f = open(log, "a", encoding="utf-8", errors="replace")
+    # Bind 0.0.0.0 so Cloudflare tunnel + LAN + Edge app all hit one host
+    bind = os.environ.get("POCKET_BIND") or "0.0.0.0"
     proc = subprocess.Popen(
-        [sys.executable, "-m", "pocket", "serve", "--host", "127.0.0.1", "--port", str(PORT)],
+        [sys.executable, "-m", "pocket", "serve", "--host", bind, "--port", str(PORT)],
         cwd=str(src.parent),
         env=env,
         stdout=out_f,

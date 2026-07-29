@@ -21,12 +21,19 @@ function Log([string]$m) {
 
 function HealthOk {
   try {
-    $r = Invoke-RestMethod "http://127.0.0.1:8787/health" -TimeoutSec 3
-    return [bool]$r.ok
-  } catch { return $false }
+    $r = Invoke-WebRequest "http://127.0.0.1:8787/" -UseBasicParsing -TimeoutSec 3
+    return ($r.StatusCode -eq 200)
+  } catch {
+    try {
+      $r2 = Invoke-RestMethod "http://127.0.0.1:8787/health" -TimeoutSec 3
+      return [bool]$r2.ok
+    } catch { return $false }
+  }
 }
 
 function KillPort8787 {
+  # ONLY used when we are sure the listener is dead/zombie — prefer not to kill
+  Log "WARNING: freeing port 8787 (zombie recovery only)"
   Get-NetTCPConnection -LocalPort 8787 -State Listen -ErrorAction SilentlyContinue |
     ForEach-Object {
       try { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue } catch {}
@@ -69,11 +76,20 @@ function StartPocket {
   Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "`"$RunBat`"" -WindowStyle Hidden | Out-Null
 }
 
-Log "Always-On watchdog started"
-if (-not (HealthOk)) {
-  KillPort8787
-  StartPocket
-  Start-Sleep -Seconds 5
+Log "Always-On watchdog started (will NOT thrash a healthy host)"
+if (HealthOk) {
+  Log "HEART ok — already up, not restarting"
+} else {
+  $listening = [bool](Get-NetTCPConnection -LocalPort 8787 -State Listen -ErrorAction SilentlyContinue)
+  if ($listening) {
+    Log "Port listening but health failed — wait, do not kill cloudflared/host blindly"
+    Start-Sleep -Seconds 8
+  }
+  if (-not (HealthOk)) {
+    if ($listening) { KillPort8787 }  # only if still broken after wait
+    StartPocket
+    Start-Sleep -Seconds 5
+  }
 }
 if (HealthOk) { Log "HEART ok" } else { Log "HEART failed initial start — see pocket-serve.log" }
 

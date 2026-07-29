@@ -47,47 +47,53 @@ code{{color:var(--accent);font-size:12.5px}}
 <body>
 {nav}
 <main class="wrap">
-  <div class="eyebrow">Distribution · marketing · beta</div>
+  <div class="eyebrow">Ship · multi-user · product</div>
   <h1>Get POCKET</h1>
-  <p class="lead">Give people one of these three doors. The product is the same — only the shell changes.</p>
+  <p class="lead">Same product, three doors. Host stays always-on; you open POCKET like any other app.</p>
 
   <div class="step" id="web">
-    <h2>1 · Web app (recommended)</h2>
-    <p>No install. Share your public desk URL. Most stable surface — what you already use in Edge.</p>
-    <a class="btn btn-primary" href="/desk">Open web app</a>
+    <h2>1 · Cloud desk (phone + remote users)</h2>
+    <p>Share your Cloudflare URL. Multi-user: they <strong>register with your invite code</strong> on the login panel.</p>
+    <a class="btn btn-primary" href="/desk">Open desk</a>
     <a class="btn btn-ghost" href="/tour">Overview</a>
   </div>
 
   <div class="step" id="edge">
-    <h2>2 · Install as Edge app (from your website)</h2>
-    <p>This is the “real app” launch from the site — already working for you. Tell users:</p>
+    <h2>2 · Edge app (what you like on this PC)</h2>
+    <p>Opens as a real window — not a random tab. On the operator PC, use the <strong>POCKET</strong> desktop shortcut
+    (install ship script once) so the host auto-starts, then Edge opens <code>/desk</code> as an app.</p>
     <ol>
-      <li>Open the POCKET site in <strong>Microsoft Edge</strong>.</li>
-      <li>Menu (⋯) → <strong>Apps</strong> → <strong>Install this site as an app</strong>.</li>
-      <li>Open POCKET from the Start menu / taskbar like any desktop app.</li>
+      <li>Operator: run <code>scripts\\Install-POCKET-Ship.ps1</code> once.</li>
+      <li>Double-click <strong>POCKET</strong> on the Desktop anytime.</li>
+      <li>Or in Edge: ⋯ → Apps → <strong>Install this site as an app</strong>.</li>
     </ol>
-    <p>Same cookies and login as the website. Browser inside POCKET navigates <em>this</em> Edge window.</p>
-    <a class="btn btn-primary" href="/desk">Open, then Install as app</a>
+    <a class="btn btn-primary" href="/desk">Open desk (then Install as app)</a>
   </div>
 
   <div class="step" id="exe">
-    <h2>3 · Windows .exe download</h2>
-    <p>Portable or installer package when you want a classic download button on marketing.</p>
+    <h2>3 · Electron / Windows .exe</h2>
+    <p>Classic download for users who want an installer/portable. Marketing site can point here after pay/account.</p>
     <a class="btn btn-primary" href="/download">Download page</a>
     <a class="btn btn-ghost" href="/download/desktop">Direct Windows package</a>
+    <a class="btn btn-ghost" href="https://github.com/FreddyCreates/pocket/releases" target="_blank" rel="noopener">GitHub Releases</a>
+  </div>
+
+  <div class="step" id="multi">
+    <h2>Multi-user seats</h2>
+    <p>Invite-gated accounts (not open SaaS). Operator shares invite from <code>~/.pocket/INVITE.txt</code>.
+    Users register in the desk login → work under RBAC + quotas.</p>
   </div>
 
   <div class="step" id="api">
-    <h2>API (builders — not the human UI)</h2>
-    <p>Machine access for Grok, Codex, Claude, scripts. Separate from “download the app.”</p>
+    <h2>API (builders)</h2>
+    <p>Machine access for agents and scripts — separate from human download.</p>
     <a class="btn btn-ghost" href="/developers">Developers / API</a>
   </div>
 
   <div class="note">
-    <strong>Marketing tip:</strong> Put <code>/get</code> on business cards and tweets.
-    Primary CTA = <strong>Use web app</strong>. Secondary = Edge install. Tertiary = .exe.
-    You do <em>not</em> need a second product site unless you want brand storytelling off the host —
-    this page is already the standalone “get it” surface on the live host.
+    <strong>Product rule:</strong> never thrash the host or Cloudflare tunnel.
+    Always-on keeps <code>:8787</code> up; Edge/Electron only open the UI.
+    Funnel later: marketing site → pay/account → download Electron or open cloud desk.
   </div>
 
   <div class="foot">
