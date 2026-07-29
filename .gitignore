@@ -1,0 +1,84 @@
+# --- secrets & local runtime (never ship) ---
+.pocket/
+**/.pocket/
+**/ACCESS.txt
+**/api_keys.json
+**/access.env
+**/*-named.env
+**/*.pem
+**/*.key
+.env
+.env.*
+!.env.example
+*.secret
+secrets/
+credentials/
+
+# --- python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+dist/
+build/
+.venv/
+venv/
+.envrc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- node / electron ---
+node_modules/
+desktop-electron/node_modules/
+desktop-electron/dist/
+desktop-electron/out/
+npm-debug.log*
+yarn-error.log*
+pnpm-lock.yaml
+package-lock.json
+!desktop-electron/package-lock.json
+
+# --- large installers (publish via GitHub Releases / host /download) ---
+releases/desktop/*.exe
+releases/desktop/*.msi
+releases/desktop/*.zip
+releases/desktop/*.blockmap
+*.exe
+*.msi
+*.dmg
+*.AppImage
+
+# --- editor / OS ---
+.DS_Store
+Thumbs.db
+Desktop.ini
+.idea/
+.vscode/
+*.swp
+*~
+
+# --- agent / IDE local junk ---
+.codex/
+.grok/
+.agents/
+.claude/
+.cursor/
+*.log
+logs/
+
+# --- local proofs / offload / mesh (operator machine) ---
+proofs/
+offload/
+ai_workspace/
+
+# --- OneDrive / temp ---
+~$*
+*.tmp
+.temp/
+
+PUBLIC_URL.txt
+

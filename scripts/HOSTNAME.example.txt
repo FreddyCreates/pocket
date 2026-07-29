@@ -1,0 +1,5 @@
+# Copy your real hostname into the setup command, e.g.:
+# pocket.yourdomain.com
+# desk.itsnotailabs.com
+#
+# Domain must already be on your Cloudflare account (nameservers active).

@@ -1,0 +1,10 @@
+"""POCKET — multi-agent desk + sellable AI API (production seats)."""
+
+__version__ = "2.0.1-alpha"
+PRODUCT = "POCKET"
+PRODUCT_FULL = "POCKET — Agentic Interface Synthesis Host"
+TAGLINE = "Fusion Sense on the host. RFE remake. Agents that author — not clerks of the GUI."
+DOCTRINE = "Fusion-Sense (wf1) is the baseline. AIS collapses the GUI–API divide. One seat, one API, sellable."
+LAB = "ItsNotAI Labs"
+COMPANY = "Medina Tech Labs"
+FISH = "GUPPY"

@@ -1,0 +1,61 @@
+{
+  "name": "pocket-desktop",
+  "productName": "POCKET",
+  "version": "2.0.1",
+  "description": "POCKET desktop shell — Electron wrapper around the local host",
+  "main": "main.js",
+  "author": "MedinaTech",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "node run-electron.js",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --win portable nsis",
+    "dist:arm64": "electron-builder --win portable nsis --arm64",
+    "dist:x64": "electron-builder --win portable nsis --x64",
+    "dist:portable": "electron-builder --win portable"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.medinatech.pocket",
+    "productName": "POCKET",
+    "copyright": "Copyright © MedinaTech",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "run-electron.js",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "POCKET"
+    }
+  }
+}

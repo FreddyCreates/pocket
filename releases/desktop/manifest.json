@@ -1,0 +1,54 @@
+﻿{
+    "ok":  true,
+    "product":  "POCKET",
+    "lab":  "ItsNotAI Labs",
+    "version":  "2.0.1-alpha",
+    "channel":  "desktop-electron",
+    "app_id":  "com.medinatech.pocket",
+    "product_name":  "POCKET",
+    "releases_dir":  "releases/desktop",
+    "host_arch":  "arm64",
+    "artifacts":  [
+                      {
+                          "name":  "POCKET 2.0.1-arm64.exe",
+                          "size":  80395871,
+                          "size_mb":  76.67,
+                          "mtime":  1785229471.1515434,
+                          "mtime_iso":  "2026-07-28T09:04:31Z",
+                          "url":  "/download/files/POCKET 2.0.1-arm64.exe",
+                          "download_url":  "/download/files/POCKET 2.0.1-arm64.exe",
+                          "kind":  "portable",
+                          "arch":  "arm64",
+                          "platform":  "win32"
+                      }
+                  ],
+    "recommended":  {
+                        "name":  "POCKET 2.0.1-arm64.exe",
+                        "size":  80395871,
+                        "size_mb":  76.67,
+                        "mtime":  1785229471.1515434,
+                        "mtime_iso":  "2026-07-28T09:04:31Z",
+                        "url":  "/download/files/POCKET 2.0.1-arm64.exe",
+                        "download_url":  "/download/files/POCKET 2.0.1-arm64.exe",
+                        "kind":  "portable",
+                        "arch":  "arm64",
+                        "platform":  "win32"
+                    },
+    "download":  {
+                     "page":  "/download",
+                     "windows":  "/download/desktop",
+                     "windows_portable":  "/download/desktop?kind=portable",
+                     "windows_installer":  "/download/desktop?kind=nsis",
+                     "api":  "/v1/desktop/releases"
+                 },
+    "notes":  [
+                  "Electron shell wraps the stable web edge desk (same UI as /desk).",
+                  "Requires the POCKET host runtime on the machine (auto-starts if python -m pocket is available).",
+                  "Prefer portable .exe for one-file trial; NSIS installer for Start Menu + shortcuts."
+              ],
+    "stable_surface":  {
+                           "web":  "http://127.0.0.1:8787/desk",
+                           "public_hint":  "https://pocket.medinatechlabs.net/desk",
+                           "why":  "Web edge desk is the most stable surface; Electron packages that same UI as a downloadable .exe"
+                       }
+}
