@@ -1,74 +1,71 @@
 # POCKET — ship for users (product mode)
 
-## The three ways to use it
+## Two client modes (test both)
+
+| Shortcut | Who | First open |
+|----------|-----|------------|
+| **POCKET Owner** | You / operator | Local host only — **no** source wizard |
+| **POCKET User Test** | Members / download users | **Source picker** → cloud / local / custom → desk → Create my seat |
+| **POCKET** (Edge) | You on this PC | Edge app → local desk (ensure-if-down) |
+
+Owner and User use **separate Electron profiles** (`%APPDATA%\POCKET-Owner` vs `POCKET-User`) so testing one never overwrites the other.
+
+## What happens when a **user** opens POCKET
+
+```text
+1. Launch (POCKET_CLIENT_ROLE=user or packaged install)
+2. If no saved desk → onboarding.html
+   a. Pick source:
+      • Team/cloud desk  → enter https URL (probe /health)
+      • This computer    → ensure local host on :8787
+      • Custom URL       → any https origin
+   b. Save only { source, baseUrl } — never password or pk_seat_
+3. Open {baseUrl}/desk
+4. Create my seat (pk_seat_…) or Sign in as yourself
+5. Next launch: skip wizard, open saved desk
+   (Menu → Change desk source… to re-pick)
+```
+
+Owner path never runs steps 2a–2b.
+
+## The three surfaces
 
 | Surface | Who | How they open it |
 |---------|-----|------------------|
-| **Edge app (local)** | You / same Wi‑Fi | Desktop shortcut **POCKET** → auto-starts host → Edge `--app=` desk |
-| **Electron .exe** | Download users | **POCKET Electron** shortcut or GitHub Release / `/download` |
-| **Cloudflare URL** | Phone / remote users | https://pocket.medinatechlabs.net (tunnel must stay Automatic) |
+| **Edge app (local)** | You / same Wi‑Fi | Desktop **POCKET** |
+| **Electron .exe** | Download users | User hub / Releases — first-run picker |
+| **Cloudflare URL** | Phone / remote | https://pocket.medinatechlabs.net/desk |
 
-**Rule for agents/operators:** never kill a healthy host or cloudflared just to “restart.” Only start if **down**.
+**Rule for agents/operators:** never kill a healthy host or cloudflared. Only start if **down**.
 
 ## Install once (this PC)
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File C:\Users\Medin\OneDrive\pocket-os\scripts\Install-POCKET-Ship.ps1
+powershell -ExecutionPolicy Bypass -File scripts\Install-POCKET-Ship.ps1
 ```
 
-That installs:
+That installs always-on + dual Desktop shortcuts for Owner and User Test.
 
-1. **Always-on** watchdog in Windows Startup  
-2. Host ensure-if-down  
-3. Desktop + Start Menu shortcuts  
+## Multi-user (not “share owner login”)
 
-Then you open **POCKET** like any other app — double-click.
+1. Owner mints **`pk_seat_…`** (SHA-256 on server, max uses / expiry).
+2. Member opens **user** client → picks desk source → **Create my seat**.
+3. Member chooses **their** username + password.
+4. Owner session stays owner. Member is a seat, not admin (unless granted).
 
-## Multi-user (already in product)
+See [MULTI_USER.md](MULTI_USER.md).
 
-| File | Role |
+## Public repos (no secrets)
+
+| Repo | Role |
 |------|------|
-| `~/.pocket/INVITE.txt` | Share invite code |
-| Login panel | Register with invite + password |
-| `~/.pocket/users.json` | Accounts + roles |
+| [FreddyCreates/pocket](https://github.com/FreddyCreates/pocket) | Product source |
+| [FreddyCreates/pocket-app](https://github.com/FreddyCreates/pocket-app) | User-facing hub |
 
-Flow for a new user:
-
-1. You share invite code + either Cloudflare URL or they install Electron against their own host later.  
-2. They open desk → **Register** with invite.  
-3. They use agents under their seat (RBAC + quotas).
-
-## Cloudflare vs Edge app
-
-| | Cloudflare | Edge app (local) |
-|--|------------|------------------|
-| Needs | cloudflared service **Automatic** + host on `:8787` | Host on this PC only |
-| Use | Phone, far away, multi-user public | You at the desk, fastest |
-| Breaks if | Host killed, tunnel stopped | Host not running (shortcut fixes this) |
-
-Both talk to the **same product**. Do not thrash the host.
-
-## Funnel (later website on CF)
-
-```text
-Marketing site (CF Pages)
-  → Pay / account
-  → Download Electron  (/download or GitHub Releases)
-  → Or “Open my seat” → pocket.medinatechlabs.net/desk
-  → Or “Install Edge app” instructions (/get)
-```
-
-Ship install first; marketing polish second.
+Never commit: `ACCESS.txt`, invite keys, `users.json`, API keys, tunnel tokens, `.env`.
 
 ## Downloads
 
 - Local: http://127.0.0.1:8787/download  
 - Public: https://pocket.medinatechlabs.net/download  
 - GitHub: https://github.com/FreddyCreates/pocket/releases  
-
-## Health
-
-```powershell
-# Should NOT kill anything — only starts if needed
-powershell -File ...\scripts\Ensure-POCKET-Up.ps1
-```

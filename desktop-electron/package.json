@@ -1,12 +1,12 @@
 {
   "name": "pocket-desktop",
   "productName": "POCKET",
-  "version": "2.0.1",
-  "description": "POCKET desktop shell — Electron wrapper around the local host",
+  "version": "2.1.0",
+  "description": "POCKET user client — pick team cloud or local host, then your seat",
   "main": "main.js",
-  "author": "MedinaTech",
-  "license": "UNLICENSED",
-  "private": true,
+  "author": "ItsNotAI Labs",
+  "license": "MIT",
+  "private": false,
   "scripts": {
     "start": "node run-electron.js",
     "pack": "electron-builder --dir",
@@ -29,6 +29,7 @@
     "files": [
       "main.js",
       "preload.js",
+      "onboarding.html",
       "run-electron.js",
       "package.json"
     ],

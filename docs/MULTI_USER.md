@@ -30,8 +30,19 @@ List (admin): `GET /v1/admin/invites` — prefixes only, never raw secrets.
 ## Ship paths for members
 
 1. Owner mints seat key  
-2. Member opens cloud desk **or** Electron / Edge against the product  
+2. Member opens **user** client (Electron first-run source picker, or browser cloud desk)  
 3. **Create my seat** with key  
 4. Later: sign in with **their** user/pass only  
 
+### Electron first open (user only)
+
+```text
+Source picker → cloud | local | custom → /desk → Create my seat
+```
+
+Owner shortcut (`POCKET_CLIENT_ROLE=operator`) **skips** the picker and opens local host.  
+Profiles are isolated (`POCKET-User` vs `POCKET-Owner`) so you can test both.
+
 Invite is not “here’s my password.”
+
+See also [SHIP_FOR_USERS.md](SHIP_FOR_USERS.md).

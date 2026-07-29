@@ -1,13 +1,17 @@
 /**
- * POCKET — preload bridge (minimal, context-isolated, sandboxed)
- *
- * Exposes a tiny read-only API. No Node fs/child_process/shell access.
+ * User-facing client bridge only — no secrets, no fs, no shell.
  */
-const { contextBridge } = require("electron");
+const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("pocket", {
   platform: process.platform,
-  /** App shell identity (renderer may show version badge). */
   shell: "electron",
-  version: "2.0.1",
+  version: "2.1.0",
+});
+
+contextBridge.exposeInMainWorld("pocketClient", {
+  getConfig: () => ipcRenderer.invoke("pocket:getConfig"),
+  getDefaults: () => ipcRenderer.invoke("pocket:defaults"),
+  completeOnboarding: (payload) =>
+    ipcRenderer.invoke("pocket:completeOnboarding", payload || {}),
 });

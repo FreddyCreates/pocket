@@ -2,7 +2,9 @@
 .pocket/
 **/.pocket/
 **/ACCESS.txt
+**/INVITE.txt
 **/api_keys.json
+**/users.json
 **/access.env
 **/*-named.env
 **/*.pem
@@ -13,6 +15,12 @@
 *.secret
 secrets/
 credentials/
+**/pocket-client.json
+**/cloudflared*.json
+**/*tunnel*.json
+
+# vendor: keep auro meaning source + model (product), ignore caches
+vendor/**/__pycache__/
 
 # --- python ---
 __pycache__/
