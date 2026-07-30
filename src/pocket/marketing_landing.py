@@ -47,13 +47,13 @@ code{{color:var(--accent);font-size:12.5px}}
 <body>
 {nav}
 <main class="wrap">
-  <div class="eyebrow">Ship · multi-user · product</div>
+  <div class="eyebrow">Market · seats · not founder disk</div>
   <h1>Get POCKET</h1>
-  <p class="lead">Same product, three doors. Host stays always-on; you open POCKET like any other app.</p>
+  <p class="lead">Market users get <strong>their</strong> local sandbox + virtual files. Invites are for seats and marketing — never the founder’s personal computer.</p>
 
   <div class="step" id="web">
-    <h2>1 · Cloud desk (phone + remote users)</h2>
-    <p>Share your Cloudflare URL. Multi-user: they <strong>register with your invite code</strong> on the login panel.</p>
+    <h2>1 · Create a market seat</h2>
+    <p>Open the desk → <strong>Create my seat</strong> with a <code>pk_seat_…</code> invite. You work in your platform space (files + local sandbox + git). You do not browse the operator’s disk.</p>
     <a class="btn btn-primary" href="/desk">Open desk</a>
     <a class="btn btn-ghost" href="/tour">Overview</a>
   </div>

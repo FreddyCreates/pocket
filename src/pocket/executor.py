@@ -208,9 +208,43 @@ def prefer_product_cwd(path: str = "") -> str:
 
 
 def resolve_cwd(job: Dict) -> str:
-    cwd = (job.get("cwd") or "").strip()
+    """Resolve job working directory.
+
+    Founder edition (host_power): full local product trees on THIS machine.
+    Market edition: only tenants/<user> (their local sandbox + virtual).
+    Never allow market jobs into founder deny paths.
+    """
+    from pocket.platform_space import (
+        is_under_tenant,
+        path_is_founder_private,
+        tenant_cwd,
+    )
+
+    owner = (job.get("owner") or "").strip().lower()
+    host_power = bool(job.get("host_power"))
+    edition = (job.get("edition") or ("founder" if host_power else "market")).lower()
     ws = (job.get("workspace") or "").strip()
-    if ws and ws not in ("workspace", "default", "scratch"):
+
+    # Market / non-founder: jail to their space
+    if edition == "market" or (owner and not host_power):
+        if not owner:
+            owner = "anonymous"
+            try:
+                return tenant_cwd("market", "files")
+            except Exception:
+                p = Path.home() / ".pocket" / "tenants" / "_anon" / "files"
+                p.mkdir(parents=True, exist_ok=True)
+                return str(p)
+        cwd0 = (job.get("cwd") or "").strip()
+        if cwd0 and is_under_tenant(owner, cwd0) and not path_is_founder_private(cwd0):
+            return str(Path(cwd0).resolve())
+        # local vs virtual surface inside tenant
+        surface = "local" if ws in ("local",) else (ws if ws.startswith("tenant") else ws or "files")
+        return tenant_cwd(owner, surface)
+
+    # Founder: normal host paths
+    cwd = (job.get("cwd") or "").strip()
+    if ws and ws not in ("workspace", "default", "scratch") and not ws.startswith("tenant:"):
         for w in KNOWN_WORKSPACES:
             if w["id"] == ws or w["path"] == ws:
                 p = Path(w["path"])
@@ -221,7 +255,6 @@ def resolve_cwd(job: Dict) -> str:
             return str(p.resolve())
     if cwd and Path(cwd).is_dir() and not _is_scratch_workspace(cwd):
         return str(Path(cwd).resolve())
-    # Default product workspace for Codex sessions: Parallax (then Auro / pocket-os)
     return prefer_product_cwd(cwd)
 
 
@@ -367,6 +400,18 @@ def run_job(job: Dict) -> Tuple[str, str, str]:
             f"Worker runs embodiment steps + proof pack in background.\n"
         )
         return body, ("" if r.get("ok") else r.get("error") or "offload failed"), "offload"
+    if mode in ("cowork", "work", "demo", "embody-desk"):
+        from pocket.cowork import run_cowork_job
+
+        return run_cowork_job(prompt, cwd=cwd, job=job)
+    if mode in ("git", "forge", "sovereign-git", "sovereign_git"):
+        from pocket.sovereign_git import run_git_job
+
+        return run_git_job(prompt)
+    if mode in ("ghost", "ghost-math", "math"):
+        from pocket.ghost_math import run_ghost
+
+        return run_ghost(prompt)
     if mode == "term":
         # Interactive terminals are handled via /v1/terminals — not one-shot jobs
         return (

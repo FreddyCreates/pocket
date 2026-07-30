@@ -769,7 +769,7 @@ body.device-computer .rail{display:flex!important}
       <input id="regDisplay" placeholder="optional"/>
       <label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px;font-size:12px;color:var(--muted);font-weight:500">
         <input type="checkbox" id="regTerms" style="margin-top:3px"/>
-        <span>I accept the <a href="/v1/legal" target="_blank" rel="noopener">terms &amp; trust model</a> (jobs run on the host PC; not multi-tenant SaaS).</span>
+        <span>I accept the <a href="/v1/legal" target="_blank" rel="noopener">terms</a>. Market seats get <b>your</b> local sandbox + virtual files — never the founder’s personal disk.</span>
       </label>
       <button class="primary" id="regBtn" type="button">Create my seat</button>
     </div>

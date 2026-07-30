@@ -26,9 +26,12 @@ from pocket.auth import (
 from pocket.rbac import (
     allow_admin_action,
     allow_agent,
+    allow_host_path,
     allow_mode,
     can_access_owned,
     is_admin,
+    is_founder,
+    is_host_power,
     principal as rbac_principal,
 )
 from pocket.executor import available_engines
@@ -319,6 +322,12 @@ class Handler(BaseHTTPRequestHandler):
             return False
         if is_authorized(self.headers):
             clear_auth_failures(ip)
+            # Market seats cannot call founder-host control APIs
+            p = rbac_principal(self.headers)
+            ok_h, msg_h = allow_host_path(p, path)
+            if not ok_h:
+                self._json(403, {"ok": False, "error": msg_h, "edition": "market"})
+                return False
             return True
         record_auth_failure(ip)
         self._reject_unauthorized()
@@ -646,8 +655,56 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/v1/deploys":
             return self._json(200, {"deploys": list_deploys()})
         if path == "/v1/workspace/tools":
+            p = rbac_principal(self.headers)
+            if not is_founder(p):
+                # Market: tools list for their space only — no founder product roots
+                from pocket.platform_space import space_summary
+
+                return self._json(
+                    200,
+                    {
+                        "ok": True,
+                        "edition": "market",
+                        "founder_files": False,
+                        "space": space_summary(p.get("user") or "anonymous"),
+                    },
+                )
             ws = (q.get("workspace") or ["workspace"])[0]
             return self._json(200, workspace_tools(ws))
+        # Market virtual + local sandbox explorer (never founder disk)
+        if path in ("/v1/space", "/v1/space/me"):
+            from pocket.platform_space import space_summary
+
+            p = rbac_principal(self.headers)
+            if (p.get("role") or "none") == "none":
+                return self._json(401, {"ok": False, "error": "auth required"})
+            if is_founder(p):
+                return self._json(
+                    200,
+                    {
+                        "ok": True,
+                        "edition": "founder",
+                        "note": "Founder POCKET uses full local host paths; /v1/space is for market seats.",
+                        "user": p.get("user"),
+                    },
+                )
+            return self._json(200, space_summary(p.get("user") or ""))
+        if path == "/v1/space/list":
+            from pocket.platform_space import list_space
+
+            p = rbac_principal(self.headers)
+            if (p.get("role") or "none") == "none":
+                return self._json(401, {"ok": False, "error": "auth required"})
+            user = p.get("user") or ""
+            if is_founder(p) and (q.get("user") or [None])[0]:
+                user = (q.get("user") or [user])[0]
+            elif is_founder(p):
+                return self._json(
+                    400,
+                    {"ok": False, "error": "founder: pass ?user= for tenant peek, or use host paths"},
+                )
+            rel = (q.get("path") or q.get("rel") or ["files"])[0]
+            return self._json(200, list_space(user, rel))
         if path == "/v1/grok/can-start":
             return self._json(200, can_codex_start_grok())
         if path == "/v1/safety":
@@ -1189,6 +1246,22 @@ class Handler(BaseHTTPRequestHandler):
 
             # use module-level urlparse/parse_qs — local import shadows and crashes do_GET
             qs = {k: (v[0] if v else "") for k, v in parse_qs(urlparse(self.path).query).items()}
+            p = rbac_principal(self.headers)
+            if not is_founder(p):
+                # Market never indexes founder Parallax / OneDrive
+                from pocket.platform_space import list_space, tenant_cwd
+
+                user = p.get("user") or "anonymous"
+                return self._json(
+                    200,
+                    {
+                        "ok": True,
+                        "edition": "market",
+                        "founder_files": False,
+                        "cwd": tenant_cwd(user, "files"),
+                        "space": list_space(user, "files"),
+                    },
+                )
             ws = qs.get("workspace") or "parallax"
             sid = qs.get("session_id") or qs.get("session") or ""
             if qs.get("refresh") in ("1", "true", "yes"):
@@ -1662,6 +1735,35 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, connect_service(sid))
 
         if path == "/v1/files/upload":
+            p = rbac_principal(self.headers)
+            if not is_founder(p):
+                # Market: only their tenant tree (never founder disk)
+                import base64
+                import re as _re
+                from pocket.platform_space import tenant_root
+
+                user = (p.get("user") or "anonymous").strip().lower()
+                name = (body.get("filename") or "upload.bin").replace("\\", "/").split("/")[-1]
+                if not name or ".." in name or not _re.match(r"^[\w.\- ()\[\]]+$", name):
+                    return self._json(400, {"ok": False, "error": "invalid filename"})
+                try:
+                    raw = base64.b64decode(body.get("content_base64") or "", validate=False)
+                except Exception:
+                    return self._json(400, {"ok": False, "error": "bad base64"})
+                up = tenant_root(user) / "uploads"
+                up.mkdir(parents=True, exist_ok=True)
+                dest = up / name
+                dest.write_bytes(raw)
+                return self._json(
+                    200,
+                    {
+                        "ok": True,
+                        "edition": "market",
+                        "founder_files": False,
+                        "path": f"uploads/{name}",
+                        "bytes": len(raw),
+                    },
+                )
             return self._json(
                 200,
                 upload_file(
@@ -1672,7 +1774,33 @@ class Handler(BaseHTTPRequestHandler):
                 ),
             )
 
+        if path in ("/v1/space/write", "/v1/space/read"):
+            from pocket.platform_space import read_text, write_text
+
+            p = rbac_principal(self.headers)
+            if (p.get("role") or "none") == "none":
+                return self._json(401, {"ok": False, "error": "auth required"})
+            user = p.get("user") or ""
+            if is_founder(p) and body.get("user"):
+                user = body.get("user")
+            elif is_founder(p):
+                return self._json(400, {"ok": False, "error": "founder uses host paths; market uses /v1/space"})
+            rel = body.get("path") or body.get("rel") or ""
+            if path.endswith("/write"):
+                return self._json(200, write_text(user, rel, body.get("content") or body.get("text") or ""))
+            return self._json(200, read_text(user, rel))
+
         if path == "/v1/desktop/open":
+            p = rbac_principal(self.headers)
+            if not is_founder(p):
+                return self._json(
+                    403,
+                    {
+                        "ok": False,
+                        "error": "Founder-host desktop only. Market POCKET uses /v1/space (your files).",
+                        "edition": "market",
+                    },
+                )
             from pocket.desktop import open_app
 
             return self._json(
@@ -1781,6 +1909,7 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/v1/sessions":
             from pocket.device import device_from_request
+            from pocket.platform_space import ensure_job_isolation, tenant_cwd
 
             p = rbac_principal(self.headers)
             mode = body.get("mode") or "codex"
@@ -1788,14 +1917,22 @@ class Handler(BaseHTTPRequestHandler):
             if not ok:
                 return self._json(403, {"ok": False, "error": msg})
             dev = device_from_request(self.headers, body)
+            owner = p.get("user") or "pocket"
+            ws = body.get("workspace") or "workspace"
+            cwd = body.get("cwd") or ""
+            if not is_founder(p):
+                ws = f"tenant:{owner}"
+                cwd = tenant_cwd(owner, "files")
             sess = create_session(
                 mode=mode,
                 title=body.get("title") or "",
-                workspace=body.get("workspace") or "workspace",
-                cwd=body.get("cwd") or "",
+                workspace=ws,
+                cwd=cwd,
                 client_device=dev,
-                owner=p.get("user") or "pocket",
+                owner=owner,
             )
+            sess["edition"] = "founder" if is_founder(p) else "market"
+            sess["founder_files"] = bool(is_founder(p))
             return self._json(200, {"ok": True, **sess})
 
         if path.startswith("/v1/sessions/") and path.endswith("/rename"):
@@ -1882,6 +2019,8 @@ class Handler(BaseHTTPRequestHandler):
             job_prompt = text
             if should_inject_context(mode):
                 job_prompt = (agent_context_line(dev) + text)[:20000]
+            from pocket.platform_space import ensure_job_isolation
+
             job = create_job(
                 job_prompt,
                 name=body.get("name") or "desk",
@@ -1893,6 +2032,10 @@ class Handler(BaseHTTPRequestHandler):
                 client_device=dev,
                 owner=sess.get("owner") or p.get("user") or "",
             )
+            job = ensure_job_isolation(job, founder=is_founder(p))
+            from pocket.jobs import save as save_job
+
+            save_job(job)
             bind_job(sid, msg["id"], job["id"])
             return self._json(
                 200,
@@ -1908,16 +2051,27 @@ class Handler(BaseHTTPRequestHandler):
             )
 
         if path in ("/v1/jobs", "/v1/code"):
+            from pocket.platform_space import ensure_job_isolation
+            from pocket.jobs import save as save_job
+
+            p = rbac_principal(self.headers)
+            mode = body.get("mode") or "codex"
+            ok, msg = allow_mode(p, mode)
+            if not ok:
+                return self._json(403, {"ok": False, "error": msg})
             try:
                 job = create_job(
                     body.get("prompt") or body.get("text") or "",
                     name=body.get("name") or "desk",
-                    mode=body.get("mode") or "codex",
+                    mode=mode,
                     cwd=body.get("cwd") or "",
                     workspace=body.get("workspace") or "",
+                    owner=p.get("user") or "",
                 )
             except ValueError as e:
                 return self._json(400, {"error": str(e)})
+            job = ensure_job_isolation(job, founder=is_founder(p))
+            save_job(job)
             return self._json(200, {"ok": True, **job})
 
         # Stop a single job (Grok/Codex/etc.) — kills process tree when pid known

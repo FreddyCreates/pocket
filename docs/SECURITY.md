@@ -1,13 +1,25 @@
 # POCKET security (public tunnel)
 
+## Founder files vs market (non‑negotiable)
+
+| Edition | Sees founder disk? | Local + virtual |
+|---------|--------------------|-----------------|
+| **Founder** (admin/owner) | Yes — this is their machine | Full host + virtual |
+| **Market seat** | **Never** | Only `~/.pocket/tenants/<user>/` |
+
+Market jobs cannot cwd into OneDrive/Parallax/pocket-os. Host desktop/shell/capture are founder-only.
+
+See [PRODUCT_EDITIONS.md](PRODUCT_EDITIONS.md).
+
 ## What is locked
 
 | Surface | Access |
 |---------|--------|
 | `/health` | Public (tunnel / uptime only) |
 | `/` UI shell | Public (login form only) |
-| All `/v1/*` APIs | **Password required** |
-| Deploy / shell / agents / mint | **Password required** |
+| All `/v1/*` APIs | **Password / seat required** |
+| Deploy / shell / desktop / mint | **Founder only** |
+| Market file APIs | **Own tenant only** |
 
 ## Credentials
 
