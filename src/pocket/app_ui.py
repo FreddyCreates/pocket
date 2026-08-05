@@ -852,8 +852,8 @@ body.device-computer .rail{display:flex!important}
 
 <div class="gate" id="loginGate" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
   <div class="card">
-    <h2 id="loginTitle">Sign in</h2>
-    <p id="loginBlurb"><b style="color:var(--fg)">Owner</b> uses ACCESS.txt username/password. <b style="color:var(--fg)">Members</b> use the seat they created — not the owner login.</p>
+    <h2 id="loginTitle">Sign in · POCKET</h2>
+    <p id="loginBlurb"><b style="color:var(--fg)">Company host</b> · ItsNotAI Labs / Medina Tech Labs. <b style="color:var(--fg)">Owner</b> = ACCESS.txt. <b style="color:var(--fg)">Team seats</b> use their own username/password — never the owner login.</p>
     <div class="tabs">
       <button type="button" class="on" id="tabLogin" onclick="setAuthTab('login')">Sign in</button>
       <button type="button" id="tabReg" onclick="setAuthTab('register')">Create my seat</button>

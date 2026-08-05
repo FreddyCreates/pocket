@@ -7,9 +7,13 @@ import shutil
 from pathlib import Path
 from typing import Any, Dict, List
 
-VERSION = "2.0.1-alpha"
+VERSION = "2.1.0"
 PRODUCT_NAME = "POCKET"
-PRODUCT_LINE = "Desktop (host) + Cloud API · Fusion Sense · RFE · agents · NEXUS"
+PRODUCT_LINE = "Company host platform · Desktop + Cloud API · seats · agents · NEXUS"
+COMPANY = "Medina Tech Labs"
+LAB = "ItsNotAI Labs"
+ORG = "ItsNotAILABS"
+EDITION = "company"
 
 
 def feature_matrix() -> List[Dict[str, Any]]:
@@ -217,11 +221,16 @@ def doctor() -> Dict[str, Any]:
         "product": PRODUCT_NAME,
         "version": VERSION,
         "line": PRODUCT_LINE,
+        "company": COMPANY,
+        "lab": LAB,
+        "org": ORG,
+        "edition": EDITION,
         "ready_score": f"{ok_n}/{len(checks)}",
         "checks": checks,
         "features": feature_matrix(),
         "safety": policy_summary(),
         "auth_user": expected_user(),
-        "start": "python -m pocket runtime   OR   Start-POCKET.ps1",
+        "start": "python -m pocket serve   OR   Desktop → POCKET",
+        "github": "https://github.com/ItsNotAILABS/pocket",
         "phone": pub or "https://pocket.medinatechlabs.net/",
     }

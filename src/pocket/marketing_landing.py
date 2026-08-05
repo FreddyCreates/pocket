@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
-from pocket import __version__, LAB
+from pocket import COMPANY, LAB, ORG, __version__
 from pocket.product_shell import SHELL_CSS, shell_nav
+
+GITHUB = "https://github.com/ItsNotAILABS/pocket"
 
 
 def get_app_html() -> str:
@@ -14,8 +16,8 @@ def get_app_html() -> str:
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Get POCKET — Web app · Edge · Windows</title>
-<meta name="description" content="How to get POCKET: open the web app, install as Edge app from the website, or download the Windows .exe."/>
+<title>Get POCKET — {COMPANY} company host platform</title>
+<meta name="description" content="POCKET by {LAB}: company multi-agent host. Team seats, Edge app, Windows download, sellable API."/>
 <meta name="theme-color" content="#09090b"/>
 <style>
 :root{{--bg:#09090b;--panel:#141416;--line:rgba(255,255,255,.1);--text:#e4e4e7;--muted:#a1a1aa;--fg:#fafafa;--accent:#10a37f;--accent2:#0d8c6c}}
@@ -47,9 +49,9 @@ code{{color:var(--accent);font-size:12.5px}}
 <body>
 {nav}
 <main class="wrap">
-  <div class="eyebrow">Market · seats · not founder disk</div>
+  <div class="eyebrow">{COMPANY} · {LAB} · company edition</div>
   <h1>Get POCKET</h1>
-  <p class="lead">Market users get <strong>their</strong> local sandbox + virtual files. Invites are for seats and marketing — never the founder’s personal computer.</p>
+  <p class="lead">Company multi-agent host for your team. <strong>Market seats</strong> get their own sandbox — never the operator’s personal disk. Built for organizations that keep data on their infrastructure.</p>
 
   <div class="step" id="web">
     <h2>1 · Create a market seat</h2>
@@ -75,13 +77,13 @@ code{{color:var(--accent);font-size:12.5px}}
     <p>Classic download for users who want an installer/portable. Marketing site can point here after pay/account.</p>
     <a class="btn btn-primary" href="/download">Download page</a>
     <a class="btn btn-ghost" href="/download/desktop">Direct Windows package</a>
-    <a class="btn btn-ghost" href="https://github.com/FreddyCreates/pocket/releases" target="_blank" rel="noopener">GitHub Releases</a>
+    <a class="btn btn-ghost" href="{GITHUB}/releases" target="_blank" rel="noopener">GitHub Releases</a>
   </div>
 
   <div class="step" id="multi">
-    <h2>Multi-user seats</h2>
-    <p>Invite-gated accounts (not open SaaS). Operator shares invite from <code>~/.pocket/INVITE.txt</code>.
-    Users register in the desk login → work under RBAC + quotas.</p>
+    <h2>Company multi-user seats</h2>
+    <p>Invite-gated team accounts (not open SaaS). Operator mints <code>pk_seat_…</code> keys.
+    Members create <strong>their own</strong> username + password → RBAC + quotas. Founder disk stays private.</p>
   </div>
 
   <div class="step" id="api">
@@ -101,7 +103,7 @@ code{{color:var(--accent);font-size:12.5px}}
     <a href="/desk">Desk</a>
     <a href="/download">Download</a>
     <a href="/studio">Studio</a>
-    <span>v{__version__} · {LAB}</span>
+    <span>v{__version__} · {COMPANY} · {LAB}</span>
   </div>
 </main>
 </body>
@@ -116,8 +118,8 @@ def landing_html() -> str:
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>POCKET — One platform · Desktop · API · Studio · MESIE</title>
-<meta name="description" content="POCKET host co-pilot: Desktop, API, Studio, MESIE compute. One product, one sign-in."/>
+<title>POCKET — {COMPANY} company multi-agent host</title>
+<meta name="description" content="POCKET by {LAB}: company host co-pilot. Desktop, API, Studio, team seats. Your infrastructure."/>
 <meta name="theme-color" content="#09090b"/>
 <style>
 :root{{--bg:#09090b;--panel:#141416;--line:rgba(255,255,255,.1);--text:#e4e4e7;--muted:#a1a1aa;--fg:#fafafa;--accent:#10a37f;--accent2:#0d8c6c}}
@@ -253,7 +255,7 @@ a.card-link .go{{margin-top:16px;font-weight:700;font-size:13px;color:var(--acce
 
 <footer class="foot">
   <div class="foot-inner">
-    <div>© {LAB} · POCKET · runtime-worker 873ms</div>
+    <div>© {COMPANY} · {LAB} · POCKET company edition</div>
     <div>
       <a href="/desk">Desktop</a>
       <a href="/download">Download</a>
