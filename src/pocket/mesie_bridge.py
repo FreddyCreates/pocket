@@ -95,7 +95,7 @@ def status() -> Dict[str, Any]:
 
 
 def run_mesie_job(prompt: str) -> tuple:
-    """Session job: status brief + optional cloudcolony/mesie smoke."""
+    """Session job: status brief + optional cloudcolony/mesie real check."""
     st = status()
     lines = [
         f"# MESIE\n",
@@ -109,13 +109,13 @@ def run_mesie_job(prompt: str) -> tuple:
         lines.append(f"- **{k}:** {v}\n")
     if not st.get("ok"):
         return "".join(lines), st.get("error") or "MESIE unavailable", "mesie"
-    # Try CloudColony smoke if present
+    # Try CloudColony real verification if present
     try:
         sys.path.insert(0, r"E:\repos\cloudcolony-sovereign")
-        from cloudcolony.api import smoke
+        from cloudcolony.api import smoke as cloudcolony_real
 
-        sm = smoke()
-        lines.append(f"\n## CloudColony smoke\n```\n{sm}\n```\n")
+        sm = cloudcolony_real()
+        lines.append(f"\n## CloudColony real\n```\n{sm}\n```\n")
     except Exception as e:
-        lines.append(f"\n## CloudColony smoke\n_{e}_\n")
+        lines.append(f"\n## CloudColony real\n_{e}_\n")
     return "".join(lines), "", "mesie"

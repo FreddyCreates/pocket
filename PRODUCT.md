@@ -79,10 +79,10 @@ Auth · multi-user invite · app allowlist · URL policy · shell blocklist · a
 
 POCK burns on agent / NEXUS / web / desktop. Refill = future NEXUS subscription seat. Invite-gated multi-user (not multi-tenant SaaS).
 
-## Smoke
+## Real verification
 
 ```powershell
-powershell -File C:\Users\Medin\OneDrive\pocket-os\scripts\smoke-product.ps1
+powershell -File C:\Users\Medin\OneDrive\pocket-os\scripts\real-product.ps1
 ```
 
 ## If public is 502

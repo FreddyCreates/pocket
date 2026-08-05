@@ -26,7 +26,7 @@ def _ffmpeg() -> str:
     w = shutil.which("ffmpeg")
     if w:
         return w
-    # winget common path from smoke
+    # winget common path from real verify
     root = Path(os.environ.get("LOCALAPPDATA", "")) / "Microsoft" / "WinGet" / "Packages"
     if root.is_dir():
         for p in root.rglob("ffmpeg.exe"):

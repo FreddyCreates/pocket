@@ -67,7 +67,7 @@ def feature_matrix() -> List[Dict[str, Any]]:
             "id": "mesie",
             "name": "MESIE spectral / colony compute",
             "status": "product",
-            "use": "Session → MESIE · engines · CloudColony smoke",
+            "use": "Session → MESIE · engines · CloudColony real",
             "api": ["GET /v1/mesie", "GET /v1/stack"],
             "root_hint": "MESIE_ROOT or ~/Multi-Element-Spectral-Intelligence-Engine-MESIE-",
         },

@@ -1,4 +1,4 @@
-# POCKET v1 product smoke — local + public surfaces
+﻿# POCKET product real verification — local + public surfaces
 $ErrorActionPreference = "Continue"
 $base = "http://127.0.0.1:8787"
 $pub = "https://pocket.medinatechlabs.net"
@@ -33,7 +33,7 @@ function Hit($name, $url, $method = "GET", $body = $null, $auth = $false) {
   }
 }
 
-Write-Host "=== POCKET product smoke ===" -ForegroundColor Cyan
+Write-Host "=== POCKET product REAL verification ===" -ForegroundColor Cyan
 $health = Hit "local/health" "$base/health"
 Hit "local/root" "$base/"
 Hit "public/health" "$pub/health"
@@ -64,3 +64,4 @@ if ($s.ok) {
 }
 
 Write-Host "=== done ===" -ForegroundColor Cyan
+

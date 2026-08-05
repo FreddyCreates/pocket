@@ -105,7 +105,7 @@ POST /v1/ai/route
 3. Bill subscription seat + overage from POCK burns (`GET /v1/ai/usage`).  
 4. Map refill to NEXUS/POCKET subscription.
 
-## Local smoke
+## Local real verification
 
 ```powershell
 # catalog

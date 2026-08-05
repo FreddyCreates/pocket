@@ -51,7 +51,7 @@ def identity() -> Dict[str, Any]:
                 "code edit",
                 "repo health",
                 "file ops in workspace",
-                "test/smoke via shell tools",
+                "test/real verification via shell tools",
                 "multi-turn resume per POCKET session",
             ],
             "grok": [

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import shutil
@@ -314,8 +315,10 @@ def run_job(job: Dict) -> Tuple[str, str, str]:
 
     if mode == "shell":
         return _run_shell(prompt, cwd, job_id=jid)
-    if mode == "wsl":
-        return _run_wsl(prompt, job_id=jid)
+    if mode in ("wsl", "wsl_native", "wsl-native", "linux"):
+        from pocket.wsl_agent import run_wsl_job
+
+        return run_wsl_job(prompt, cwd=cwd, job=job)
     if mode == "claude":
         return _run_claude(prompt, cwd, job_id=jid)
     if mode == "ask":
@@ -326,6 +329,132 @@ def run_job(job: Dict) -> Tuple[str, str, str]:
         return _run_plan_handoff(prompt, cwd)
     if mode == "grok":
         return _run_grok_agent(prompt, cwd, job_id=jid)
+    if mode in ("novae_grok", "novae-grok", "novae"):
+        from pocket.novae import run_novae_job
+
+        return run_novae_job(prompt, cwd=cwd, job=job, kind="grok")
+    if mode in ("novae_codex", "novae-codex"):
+        from pocket.novae import run_novae_job
+
+        return run_novae_job(prompt, cwd=cwd, job=job, kind="codex")
+    if mode in ("wiki", "infinite_wiki", "codebase"):
+        from pocket.infinite_wiki import run_wiki_job
+
+        return run_wiki_job(prompt, cwd=cwd, job=job)
+    if mode in ("dream",):
+        from pocket.dream_mode import dream_once, list_dreams, status as dream_status
+
+        low = (prompt or "").strip().lower()
+        if low in ("status", "list", ""):
+            return json.dumps({"status": dream_status(), "recent": list_dreams(8)}, indent=2), "", "dream"
+        return json.dumps(dream_once(force=True), indent=2, default=str), "", "dream"
+    if mode in ("duel",):
+        from pocket.agent_duels import duel
+
+        r = duel((prompt or "").strip() or "How should we ship the next slice?")
+        return (r.get("verdict") or {}).get("winning_plan") or json.dumps(r, indent=2), "", "duel"
+    if mode in ("capsule",):
+        from pocket.time_capsules import create_capsule, status as cap_status
+
+        low = (prompt or "").strip()
+        if low.lower() in ("list", "status", ""):
+            return json.dumps(cap_status(), indent=2, default=str), "", "capsule"
+        # "in 120s: message" or "capsule message"
+        m = re.match(r"(?:in\s+)?(\d+)\s*(?:s|sec|seconds)?\s*[:\-]?\s*(.+)$", low, re.I)
+        if m:
+            return json.dumps(create_capsule(m.group(2), after_sec=int(m.group(1))), indent=2), "", "capsule"
+        return json.dumps(create_capsule(low, after_sec=300), indent=2), "", "capsule"
+    if mode in ("serendipity",):
+        from pocket.serendipity import find_links
+
+        return json.dumps(find_links(limit=10), indent=2), "", "serendipity"
+    if mode in ("proof",):
+        from pocket.proof_chain import list_receipts, mint_receipt, status as proof_status, verify_chain
+
+        low = (prompt or "").strip().lower()
+        if low in ("verify", "check"):
+            return json.dumps(verify_chain(), indent=2), "", "proof"
+        if low in ("list", "status", ""):
+            return json.dumps({"status": proof_status(), "recent": list_receipts(10)}, indent=2), "", "proof"
+        return json.dumps(mint_receipt("manual", prompt or "manual"), indent=2), "", "proof"
+    if mode in ("dual", "cortex", "subcortex"):
+        from pocket.cortex_subcortex import run_dual_job
+
+        return run_dual_job(prompt, cwd=cwd, job=job)
+    if mode in ("swarm",):
+        from pocket.always_on_swarm import pulse_now, start as swarm_start, status as swarm_status
+
+        low = (prompt or "").strip().lower()
+        if low in ("start", "on", "enable"):
+            return json.dumps(swarm_start(), indent=2), "", "swarm"
+        if low in ("status", "help", ""):
+            return json.dumps(swarm_status(), indent=2), "", "swarm"
+        return json.dumps(pulse_now(), indent=2), "", "swarm"
+    if mode in ("build", "ship", "use_case", "emergent", "loop"):
+        from pocket.build_loop import manage_until_done, run_use_case, start_loop
+        from pocket.use_cases import get_use_case, list_use_cases
+
+        text = (prompt or "").strip()
+        low = text.lower()
+        # list use cases
+        if low in ("help", "list", "use cases", "usecases", "parity"):
+            from pocket.use_cases import parity_report
+
+            if "parity" in low:
+                return json.dumps(parity_report(), indent=2), "", "build"
+            lines = ["# POCKET real use cases (Emergent+)\n"]
+            for u in list_use_cases():
+                lines.append(f"- **{u['id']}**: {u['title']}")
+            lines.append("\nStart: `use_case:fullstack_web_app` or describe the app to ship.")
+            return "\n".join(lines), "", "build"
+        # explicit use case
+        uc_id = ""
+        m = re.match(r"(?:use[_-]?case|uc|run)[:\s]+([a-z0-9_]+)", low)
+        if m:
+            uc_id = m.group(1)
+        elif get_use_case(text.split()[0] if text else ""):
+            uc_id = text.split()[0].lower()
+        owner = (job.get("owner") or "pocket") if job else "pocket"
+        if uc_id:
+            started = run_use_case(uc_id, goal=text, owner=owner)
+        else:
+            started = start_loop(text, owner=owner, template="web_static", loop_kind="ship")
+        if not started.get("ok"):
+            return "", started.get("error") or "loop failed to start", "build"
+        lid = started.get("id") or ""
+        final = manage_until_done(lid, timeout_sec=120.0)
+        loop = final.get("loop") or started
+        summary = (
+            f"# Build loop {'DONE' if final.get('ok') else loop.get('status','').upper()}\n\n"
+            f"**id:** `{lid}`\n"
+            f"**goal:** {loop.get('goal')}\n"
+            f"**phase:** {loop.get('phase')} · **status:** {loop.get('status')}\n"
+            f"**project:** `{loop.get('project')}`\n"
+            f"**progress:** {loop.get('progress')}\n\n"
+            f"Poll: `/v1/build-loops/{lid}`\n"
+            f"History phases: {len(loop.get('history') or [])}\n"
+        )
+        return summary, "" if final.get("ok") or loop.get("status") == "done" else (loop.get("error") or "incomplete"), "build"
+    if mode == "custom_agent":
+        from pocket.custom_agents import create_agent, list_agents, run_custom_agent
+
+        text = (prompt or "").strip()
+        low = text.lower()
+        if low.startswith("create ") or low.startswith("new "):
+            # create name: Role — personality
+            body = text.split(" ", 1)[-1]
+            name = body.split(":")[0].strip() or "CustomAgent"
+            rest = body.split(":", 1)[-1].strip() if ":" in body else "specialist"
+            rec = create_agent(name=name, role=rest, owner=(job or {}).get("owner") or "pocket")
+            return json.dumps(rec, indent=2), "", "custom_agent"
+        if low in ("list", "help"):
+            return json.dumps({"agents": list_agents()}, indent=2), "", "custom_agent"
+        # run: AgentId task...
+        parts = text.split(None, 1)
+        aid = parts[0] if parts else "AGENT"
+        task = parts[1] if len(parts) > 1 else text
+        r = run_custom_agent(aid, task, cwd=cwd, job=job)
+        return r.get("summary") or json.dumps(r, indent=2), "" if r.get("ok") else r.get("error", ""), "custom_agent"
     if mode == "desktop":
         from pocket.desktop import run_desktop_job
 
@@ -503,7 +632,7 @@ def _run_ask(prompt: str, cwd: str) -> Tuple[str, str, str]:
         "1. Clarify goal and constraints\n"
         "2. Identify files/modules to touch\n"
         "3. Implement smallest change\n"
-        "4. Run tests / smoke\n"
+        "4. Run tests / real verification\n"
         "5. Report diff summary\n\n"
         "Open a **Codex** or **Claude** session to execute.",
         "",

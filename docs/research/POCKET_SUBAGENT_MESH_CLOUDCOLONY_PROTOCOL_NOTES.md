@@ -57,14 +57,14 @@ POST /v1/headless/stop
 
 ---
 
-## 3. Smoke dispatch (order matters)
+## 3. Real dispatch (order matters)
 
 | Step | Action | Pass criteria |
 |------|--------|----------------|
 | A | `POST /v1/subagents/dispatch` `{"message":"@DESIGN polish composer"}` | `ok`, artifact paths under DESIGN |
 | B | Open `E:\POCKET_MESH\agents\DESIGN\artifacts\` | critique `.md` + snippet `.css` |
 | C | `GET /v1/mesh/channel?name=freq-2` | recent design traffic (if design channel used) |
-| D | `POST …` `{"message":"@FORGE_HEADLESS smoke"}` | forge artifact and/or E: worker stdout |
+| D | `POST …` `{"message":"@FORGE_HEADLESS real"}` | forge artifact and/or E: worker stdout |
 | E | `POST …` `{"message":"@SHIP_HEADLESS beta gate"}` | `SHIP_CHECKLIST.md` |
 | F | `GET /v1/mesh/inbox/ARCHON` | status/heartbeat/dispatch notices; `valid_hmac` true when signed |
 | G | Composer `@` autocomplete | Latin + design + headless names appear |

@@ -22,7 +22,7 @@ AGENTS: Dict[str, Dict[str, str]] = {
     },
     "ELECTRON": {
         "role": "electron / desktop ship",
-        "focus": "tray install, packaging, auto-start, API keys, smoke",
+        "focus": "tray install, packaging, auto-start, API keys, real verify",
     },
 }
 
@@ -105,7 +105,7 @@ def _electron_checklist(prompt: str) -> str:
         "Mesh root E:\\POCKET_MESH writable from packaged host",
         "Headless pack + @SHIP_HEADLESS checklist green",
         "Deep link / tray menu: open UI · status · quit",
-        "Smoke: serve · watch · one @DEMO beat · one artifact",
+        "Real: serve · watch · one @DEMO beat · one artifact",
         "Icons + name POCKET in Start menu / tray",
         "Uninstall path documented",
     ]
