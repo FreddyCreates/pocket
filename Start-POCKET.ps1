@@ -46,15 +46,25 @@ if (Test-Path $nxEnv) {
 }
 
 Set-Location $Root
+# Always ensure host is reachable (restart-safe)
+$ensure = Join-Path $Root "scripts\Ensure-POCKET-Up.ps1"
+if (Test-Path $ensure) {
+  try { & $ensure | Out-Host } catch { Write-Host "Ensure-POCKET-Up: $_" }
+}
 Write-Host ""
 Write-Host "================================================" -ForegroundColor Cyan
-Write-Host " POCKET v1.0 Product Runtime"
+Write-Host " POCKET Product Runtime (always-on ready)"
 Write-Host " Python:  $py"
 Write-Host " Local:   http://127.0.0.1:8787/"
 Write-Host " Public:  https://pocket.medinatechlabs.net/"
+Write-Host " Desk:    http://127.0.0.1:8787/desk"
+Write-Host " Forge:   http://127.0.0.1:8787/forge"
+Write-Host " Auro:    http://127.0.0.1:8787/auro/"
+Write-Host " GitHub:  https://github.com/FreddyCreates/pocket"
 Write-Host " NEXUS:   $Nexus"
 Write-Host " Pass:    $env:USERPROFILE\.pocket\ACCESS.txt"
-Write-Host " Leave this window open."
+Write-Host " Watchdog: scripts\Start-POCKET-AlwaysOn.ps1"
+Write-Host " Leave runtime open or rely on always-on task."
 Write-Host "================================================" -ForegroundColor Cyan
 Write-Host ""
 

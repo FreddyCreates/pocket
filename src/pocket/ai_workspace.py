@@ -262,6 +262,16 @@ def refresh_index(workspace: str = "parallax", cwd: str = "") -> Dict[str, Any]:
 
 def touch_from_job(job: Dict[str, Any]) -> Dict[str, Any]:
     """Call after every finished job — auto-update workspace (no LLM)."""
+    # Infinite Wiki: reindex any path hints after agent writes
+    try:
+        from pocket.infinite_wiki import reindex_if_stale
+
+        for key in ("path", "file", "cwd"):
+            p = (job.get(key) or "").strip()
+            if p and Path(p).is_file():
+                reindex_if_stale(p)
+    except Exception:
+        pass
     workspace = (job.get("workspace") or "parallax") or "parallax"
     sid = (job.get("session_id") or "").strip()
     cwd = (job.get("cwd") or "").strip()

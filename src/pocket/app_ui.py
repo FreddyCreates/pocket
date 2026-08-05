@@ -53,7 +53,7 @@ a:hover{color:var(--accent2)}
 .top-back{border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:4px}
 .top-back:hover{color:var(--fg);background:rgba(255,255,255,.05);border-color:var(--line2)}
 /* Production boot splash */
-.boot-splash{position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#050508;transition:opacity .45s ease,visibility .45s}
+.boot-splash{position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#050508;transition:opacity .45s ease,visibility .45s;pointer-events:none}
 .boot-splash.done{opacity:0;visibility:hidden;pointer-events:none}
 .boot-splash .boot-mark{width:52px;height:52px;border-radius:14px;background:linear-gradient(145deg,#10a37f,#0a7a5f);color:#041;display:grid;place-items:center;font-size:22px;font-weight:800;box-shadow:0 0 0 1px rgba(16,163,127,.4),0 12px 40px rgba(16,163,127,.25);animation:bootPop .7s cubic-bezier(.2,1.2,.4,1) both}
 .boot-splash .boot-title{margin-top:18px;font-size:20px;font-weight:650;letter-spacing:-.04em;color:#fafafa;animation:bootFade .6s .15s both}
@@ -184,6 +184,84 @@ a:hover{color:var(--accent2)}
 .msg.failed .mh{color:var(--red)}
 .msg.done .mh{color:var(--accent)}
 .msg.cancelled .mh{color:#f59e0b}
+/* Clean chat · model thinking animation */
+.msg.user{max-width:640px}
+.msg.agent .mh{opacity:.85;letter-spacing:.01em}
+.msg.agent .mb.prose{max-width:680px}
+.think-row{
+  max-width:720px;width:100%;margin:4px auto 8px;display:flex;align-items:center;gap:12px;
+  padding:8px 6px;color:var(--muted);font-size:12.5px;font-weight:500
+}
+.think-orb{
+  width:26px;height:26px;border-radius:50%;position:relative;flex:0 0 auto;
+  background:radial-gradient(circle at 32% 32%,#6ee7b7,var(--accent) 48%,#0a7a5f 82%);
+  box-shadow:0 0 0 0 rgba(16,163,127,.4);animation:thinkPulse 1.35s ease-in-out infinite
+}
+.think-orb::after{
+  content:"";position:absolute;inset:-5px;border-radius:50%;
+  border:2px solid transparent;border-top-color:var(--violet);border-right-color:var(--cyan);
+  animation:thinkSpin .9s linear infinite
+}
+.think-dots span{
+  display:inline-block;width:5px;height:5px;margin:0 2px;border-radius:50%;background:var(--accent);
+  animation:thinkDot 1.15s ease-in-out infinite
+}
+.think-dots span:nth-child(2){animation-delay:.14s}
+.think-dots span:nth-child(3){animation-delay:.28s}
+.think-label{color:var(--muted)}
+.think-label b{color:var(--fg);font-weight:600}
+@keyframes thinkPulse{0%,100%{box-shadow:0 0 0 0 rgba(16,163,127,.35);transform:scale(1)}50%{box-shadow:0 0 0 12px rgba(16,163,127,0);transform:scale(1.06)}}
+@keyframes thinkSpin{to{transform:rotate(360deg)}}
+@keyframes thinkDot{0%,80%,100%{opacity:.25;transform:translateY(0)}40%{opacity:1;transform:translateY(-3px)}}
+.live-dot{
+  width:7px;height:7px;border-radius:50%;background:var(--accent);display:inline-block;margin-right:6px;vertical-align:middle;
+  box-shadow:0 0 0 0 rgba(16,163,127,.5);animation:thinkPulse 1.4s ease-in-out infinite
+}
+.novae-pill{
+  display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:999px;font-size:10.5px;font-weight:650;
+  border:1px solid rgba(167,139,250,.35);color:#c4b5fd;background:rgba(124,58,237,.12)
+}
+/* Infinite Wiki profile cards in chat */
+.wiki-card{
+  max-width:720px;width:100%;margin:8px auto 10px;border:1px solid rgba(16,163,127,.28);
+  border-radius:12px;background:linear-gradient(165deg,rgba(16,163,127,.07),var(--panel));
+  overflow:hidden;box-shadow:0 0 0 1px rgba(0,0,0,.2)
+}
+.wiki-card .wc-head{
+  display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line)
+}
+.wiki-card .wc-badge{
+  flex:0 0 auto;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+  color:#041;background:var(--accent);border-radius:6px;padding:3px 7px
+}
+.wiki-card .wc-title{flex:1;min-width:0}
+.wiki-card .wc-title b{display:block;font-size:12.5px;color:var(--fg);word-break:break-all}
+.wiki-card .wc-title span{font-size:11px;color:var(--muted)}
+.wiki-card .wc-ast{
+  font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;border:1px solid var(--line);color:var(--muted)
+}
+.wiki-card .wc-ast.ts{color:#a78bfa;border-color:rgba(167,139,250,.4)}
+.wiki-card .wc-sum{padding:8px 12px;font-size:12px;color:var(--muted);line-height:1.45;border-bottom:1px solid rgba(255,255,255,.04)}
+.wiki-card .wc-syms{display:flex;flex-wrap:wrap;gap:6px;padding:10px 12px 12px}
+.wiki-card .wc-sym{
+  display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:rgba(0,0,0,.25);
+  border-radius:8px;padding:5px 8px;font-size:11.5px;color:var(--text);cursor:pointer;transition:border-color .12s,background .12s
+}
+.wiki-card .wc-sym:hover{border-color:rgba(16,163,127,.5);background:rgba(16,163,127,.1);color:var(--fg)}
+.wiki-card .wc-sym b{font-family:var(--mono);font-weight:600;font-size:11px;color:var(--accent)}
+.wiki-card .wc-sym em{font-style:normal;color:var(--muted);font-size:10.5px}
+.wiki-card .wc-actions{display:flex;flex-wrap:wrap;gap:6px;padding:0 12px 12px}
+.wiki-card .wc-actions button{
+  border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:8px;
+  padding:6px 10px;font-size:11.5px;font-weight:600
+}
+.wiki-card .wc-actions button:hover{color:var(--fg);border-color:var(--line2);background:rgba(255,255,255,.04)}
+.wiki-card .wc-actions button.primary{background:var(--accent);color:#041;border-color:transparent}
+.wiki-slice{
+  max-width:720px;width:100%;margin:6px auto 12px;border:1px solid var(--line);border-radius:10px;
+  background:#0a0a0c;overflow:auto;max-height:280px
+}
+.wiki-slice pre{margin:0;padding:10px 12px;font-family:var(--mono);font-size:11.5px;line-height:1.45;color:#b7f0c6;white-space:pre}
 .sess-ctl{font-size:12px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--muted);cursor:pointer}
 .sess-ctl:hover{color:var(--fg);border-color:var(--muted)}
 .sess-ctl.hot{color:#fbbf24;border-color:rgba(251,191,36,.45);background:rgba(251,191,36,.08)}
@@ -350,15 +428,17 @@ a:hover{color:var(--accent2)}
 .toast.show{display:block}
 .toast.ok{border-color:rgba(16,163,127,.4);color:#86efac}
 .toast.err{border-color:rgba(240,113,120,.4);color:#fca5a5}
-.gate{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.88);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px}
-.gate .card{width:100%;max-width:380px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:26px;box-shadow:0 24px 64px rgba(0,0,0,.55)}
+.gate{position:fixed;inset:0;z-index:10050;background:rgba(0,0,0,.9);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;padding:20px;pointer-events:auto}
+.gate.open{display:flex}
+.gate .card{width:100%;max-width:380px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:26px;box-shadow:0 24px 64px rgba(0,0,0,.55);pointer-events:auto;position:relative;z-index:1}
 .gate h2{margin:0 0 6px;font-size:18px;letter-spacing:-.03em;font-weight:600;color:var(--fg)}
 .gate p{margin:0 0 14px;color:var(--muted);font-size:13px;line-height:1.45}
 .gate label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px;font-weight:500}
-.gate input{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:#0a0a0a;margin-bottom:4px}
-.gate .primary{width:100%;margin-top:14px;border:0;border-radius:8px;padding:11px;font-weight:600;background:var(--accent);color:#041}
-.gate .secondary{width:100%;margin-top:8px;border:1px solid var(--line);border-radius:8px;padding:10px;font-weight:500;background:transparent;color:var(--muted)}
-.gate .err{color:var(--red);font-size:12px;margin-top:10px;min-height:16px}
+.gate input{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:#0a0a0a;margin-bottom:4px;color:var(--fg)}
+.gate .primary{width:100%;margin-top:14px;border:0;border-radius:8px;padding:11px;font-weight:600;background:var(--accent);color:#041;cursor:pointer}
+.gate .primary:disabled{opacity:.55;cursor:wait}
+.gate .secondary{width:100%;margin-top:8px;border:1px solid var(--line);border-radius:8px;padding:10px;font-weight:500;background:transparent;color:var(--muted);cursor:pointer}
+.gate .err{color:#fca5a5;font-size:12px;margin-top:10px;min-height:18px;line-height:1.4;white-space:pre-wrap}
 .tabs{display:flex;gap:6px;margin-bottom:10px}
 .tabs button{flex:1;border:1px solid var(--line);background:transparent;border-radius:8px;padding:8px;font-size:12px;font-weight:500;color:var(--muted)}
 .tabs button.on{color:var(--text);border-color:rgba(16,163,127,.4);background:rgba(16,163,127,.1)}
@@ -506,6 +586,9 @@ body.device-computer .rail{display:flex!important}
     <nav class="top-links" aria-label="Product">
       <a href="/tour">Overview</a>
       <a href="/desk" class="on-desk">Desktop</a>
+      <a href="/phone">Phone</a>
+      <a href="/work">Work Studio</a>
+      <a href="/curiosities">Curiosities</a>
       <a href="/developers">API</a>
       <a href="/studio">Studio</a>
       <a href="/forge">Forge</a>
@@ -531,6 +614,19 @@ body.device-computer .rail{display:flex!important}
     <div class="actions">
       <button onclick="newSess('codex')" title="Codex coding agent"><b>Codex</b><small>Code on this host</small></button>
       <button onclick="newSess('grok')"><b>Grok</b><small>Code &amp; research</small></button>
+      <button onclick="newSess('wsl_native')" title="Native WSL Linux agent — first-class host hands"><b>WSL</b><small>Native Linux · ~/pocket-wsl</small></button>
+      <button onclick="newSess('build')" title="Multi-agent ship loop — surpass Emergent"><b>Build</b><small>Plan→code→test→ship loop</small></button>
+      <button onclick="newSess('dual')" title="Cortex dialogue + silent Subcortex"><b>Dual loop</b><small>Talk while world works</small></button>
+      <button onclick="newSess('wiki')" title="Infinite Wiki hierarchical codebase"><b>Infinite Wiki</b><small>Profile cards · line slices</small></button>
+      <button onclick="newSess('swarm')" title="Always-on multi-agent swarm"><b>Swarm</b><small>Always-on pulses</small></button>
+      <button onclick="newSess('use_case')" title="Real product use cases"><b>Use cases</b><small>12 Emergent+ pipelines</small></button>
+      <button onclick="newSess('custom_agent')" title="Custom agents with tools + sub-agents"><b>Custom agent</b><small>Builder · tools · subs</small></button>
+      <button type="button" onclick="location.href='/work'"><b>Work Studio</b><small>Types · loops · design</small></button>
+      <button type="button" onclick="location.href='/curiosities'"><b>Curiosities</b><small>Dream · Duel · Capsules</small></button>
+      <button onclick="newSess('duel')" title="Two agents propose, judge picks"><b>Duel</b><small>FORGE vs AESTHETE</small></button>
+      <button onclick="newSess('dream')" title="Idle consolidation dreams"><b>Dream</b><small>Night consolidator</small></button>
+      <button onclick="activateNovae('GROK_NOVAE')" title="Grok Novae hands in platform workspace"><b>Grok Novae</b><small>Hands · browser + day ops</small></button>
+      <button onclick="activateNovae('CODEX_NOVAE')" title="Codex Novae hands in platform workspace"><b>Codex Novae</b><small>Hands · code + forge</small></button>
       <button onclick="newSess('claude')"><b>Claude</b><small>If installed</small></button>
       <button onclick="newSess('offload')" title="Queue real-world work; free the chat"><b>Offload</b><small>Real-world queue · proof packs</small></button>
       <button onclick="newSess('cowork')" title="Desktop embody · demos · screen record"><b>Cowork</b><small>Desk + record · not deep code</small></button>
@@ -553,8 +649,7 @@ body.device-computer .rail{display:flex!important}
         <button onclick="newSess('copilot')"><b>Copilot</b><small>Windows</small></button>
         <button onclick="newSess('handoff')"><b>Handoff</b><small>Defer plan</small></button>
         <button class="admin-only" onclick="newSess('term')"><b>Term</b><small>Host shell (admin)</small></button>
-        <button class="admin-only" onclick="newSess('shell')"><b>Shell</b><small>Admin</small></button>
-        <button class="admin-only" onclick="newSess('wsl')"><b>WSL</b><small>Admin</small></button>
+        <button class="admin-only" onclick="newSess('shell')"><b>Shell</b><small>Host PS (admin)</small></button>
       </div>
     </div>
     <div class="toolrow">
@@ -579,13 +674,23 @@ body.device-computer .rail{display:flex!important}
     <div class="transcript" id="transcript">
       <div class="empty">
         <div class="mark">P</div>
-        <h2>What are you working on?</h2>
-        <p>Pick an agent on the left, then message. <kbd>@</kbd> dispatch · <kbd>/</kbd> actions · Context on the right.</p>
+        <h2>First-class host co-pilot</h2>
+        <p>Ship on this machine. Cortex talks · Subcortex works · Infinite Wiki scales code · Swarm stays on.</p>
+        <p style="margin-top:8px;font-size:12px;color:var(--muted)"><kbd>@</kbd> dispatch · <kbd>/</kbd> actions · right rail = workspace</p>
         <div class="empty-actions">
-          <button type="button" onclick="newSess('nexus')">NEXUS</button>
-          <button type="button" onclick="newSess('mesie')">MESIE</button>
-          <button type="button" onclick="newSess('grok')">Grok</button>
           <button type="button" onclick="newSess('codex')">Codex</button>
+          <button type="button" onclick="newSess('grok')">Grok</button>
+          <button type="button" onclick="newSess('wiki')">Infinite Wiki</button>
+          <button type="button" onclick="newSess('build')">Build</button>
+          <button type="button" onclick="newSess('dual')">Dual loop</button>
+          <button type="button" onclick="newSess('swarm')">Swarm</button>
+          <button type="button" onclick="activateNovae('CODEX_NOVAE')">Codex Novae</button>
+          <button type="button" onclick="activateNovae('GROK_NOVAE')">Grok Novae</button>
+          <button type="button" onclick="location.href='/work'">Work Studio</button>
+          <button type="button" onclick="location.href='/curiosities'">Curiosities</button>
+          <button type="button" onclick="newSess('duel')">Duel</button>
+          <button type="button" onclick="newSess('dream')">Dream</button>
+          <button type="button" onclick="location.href='/phone'">Phone</button>
         </div>
       </div>
     </div>
@@ -606,6 +711,10 @@ body.device-computer .rail{display:flex!important}
           <option value="grok">Grok</option>
           <option value="claude">Claude</option>
           <option value="plan">Plan</option>
+          <option value="build">Build loop</option>
+          <option value="wiki">Infinite Wiki</option>
+          <option value="use_case">Use cases</option>
+          <option value="custom_agent">Custom agent</option>
           <option value="archon">ARCHON</option>
           <option value="guppy">GUPPY</option>
           <option value="browser">Browser</option>
@@ -741,21 +850,24 @@ body.device-computer .rail{display:flex!important}
 </div>
 <div class="toast" id="toast"></div>
 
-<div class="gate" id="loginGate">
+<div class="gate" id="loginGate" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
   <div class="card">
-    <h2>Sign in</h2>
-    <p id="loginBlurb"><b style="color:var(--fg)">Owner</b> uses ACCESS.txt. <b style="color:var(--fg)">Members</b> use the username/password they created — not the owner login. Register makes a <em>new seat</em> with a seat invite key (SHA-backed).</p>
+    <h2 id="loginTitle">Sign in</h2>
+    <p id="loginBlurb"><b style="color:var(--fg)">Owner</b> uses ACCESS.txt username/password. <b style="color:var(--fg)">Members</b> use the seat they created — not the owner login.</p>
     <div class="tabs">
       <button type="button" class="on" id="tabLogin" onclick="setAuthTab('login')">Sign in</button>
       <button type="button" id="tabReg" onclick="setAuthTab('register')">Create my seat</button>
     </div>
     <div id="loginPane">
-      <label>Your username</label>
-      <input id="loginUser" value="" placeholder="you (or owner pocket)" autocomplete="username"/>
-      <label>Your password</label>
-      <input id="loginPass" type="password" autocomplete="current-password" placeholder="your account password"/>
+      <form id="loginForm" autocomplete="on" onsubmit="event.preventDefault();doLogin();return false;">
+      <label for="loginUser">Your username</label>
+      <input id="loginUser" name="username" value="pocket" placeholder="owner: pocket" autocomplete="username"/>
+      <label for="loginPass">Your password</label>
+      <input id="loginPass" name="password" type="password" autocomplete="current-password" placeholder="from ACCESS.txt"/>
       <label style="display:flex;gap:8px;align-items:center;margin-top:8px"><input type="checkbox" id="loginRemember" checked/> Remember session on this device</label>
-      <button class="primary" id="loginBtn" type="button">Continue</button>
+      <button class="primary" id="loginBtn" type="submit">Continue</button>
+      </form>
+      <button class="secondary" id="localUnlockBtn" type="button" style="display:none" title="Localhost only">Unlock this PC (no password)</button>
     </div>
     <div id="regPane" style="display:none">
       <p style="font-size:12px;color:var(--muted);margin:0 0 10px;line-height:1.45">This creates <b style="color:var(--fg)">your own</b> account. You do not log into the owner. Paste the <b style="color:var(--fg)">pk_seat_…</b> key the owner minted for you.</p>
@@ -779,9 +891,9 @@ body.device-computer .rail{display:flex!important}
 
 <script>
 const $=id=>document.getElementById(id);
-const MODE_COLOR={codex:'#22c55e',claude:'#f59e0b',shell:'#3b82f6',wsl:'#8b5cf6',ask:'#f59e0b',plan:'#eab308',grok:'#06b6d4',handoff:'#a1a1aa',term:'#34d399',desktop:'#a78bfa',web:'#38bdf8',nexus:'#f472b6',mesie:'#a78bfa',auro:'#fbbf24',auro14b:'#fbbf24',ro14b:'#fbbf24',him:'#fbbf24',agent:'#fb7185',doer:'#fb7185',guppy:'#38bdf8',browser:'#f97316',capture:'#a3e635',repos:'#94a3b8',copilot:'#818cf8',archon:'#f43f5e',alpha:'#f43f5e',workers:'#e11d48'};
+const MODE_COLOR={codex:'#22c55e',claude:'#f59e0b',shell:'#3b82f6',wsl:'#8b5cf6',wsl_native:'#8b5cf6',linux:'#8b5cf6',ask:'#f59e0b',plan:'#eab308',grok:'#06b6d4',handoff:'#a1a1aa',term:'#34d399',desktop:'#a78bfa',web:'#38bdf8',nexus:'#f472b6',mesie:'#a78bfa',auro:'#fbbf24',auro14b:'#fbbf24',ro14b:'#fbbf24',him:'#fbbf24',agent:'#fb7185',doer:'#fb7185',guppy:'#38bdf8',browser:'#f97316',capture:'#a3e635',repos:'#94a3b8',copilot:'#818cf8',archon:'#f43f5e',alpha:'#f43f5e',workers:'#e11d48',novae_grok:'#a78bfa',novae_codex:'#34d399',novae:'#a78bfa',offload:'#fbbf24',build:'#f472b6',ship:'#f472b6',use_case:'#fb7185',emergent:'#f472b6',loop:'#f472b6',custom_agent:'#c084fc'};
 const LATIN_WORKERS=['ARCHON','HYDRA','SCRUTATOR','SCRIPTOR','PORTARIUS','OCULUS','SPECULUM','REPOSITOR','CONSILIARIUS','TABELLARIUS','NAVIGATOR','GUPPY'];
-const MESH_AGENTS=['DESIGN','AESTHETE','LAYOUT','MOTION','FORGE_HEADLESS','SENTINEL_HEADLESS','RESEARCH_HEADLESS','SHIP_HEADLESS'];
+const MESH_AGENTS=['DESIGN','AESTHETE','LAYOUT','MOTION','FORGE_HEADLESS','SENTINEL_HEADLESS','RESEARCH_HEADLESS','SHIP_HEADLESS','GROK_NOVAE','CODEX_NOVAE'];
 const MESH_AGENT_ROLES={
   DESIGN:'UI + product craft',
   AESTHETE:'Visual taste',
@@ -995,45 +1107,71 @@ async function api(path, opts){
   if(ct.includes('application/json')) return r.json();
   return {text: await r.text()};
 }
-function showGate(){ const g=$('loginGate'); if(g) g.style.display='flex'; }
-function hideGate(){ const g=$('loginGate'); if(g) g.style.display='none'; }
+function setLoginErr(msg){
+  const el=$('loginErr');
+  if(el) el.textContent=msg||'';
+  if(msg) try{ toast(msg,'err'); }catch(_){}
+}
+function showGate(){
+  dismissBootSplash(true);
+  const g=$('loginGate');
+  if(!g) return;
+  g.classList.add('open');
+  g.style.display='flex';
+  // Localhost: offer one-click unlock
+  const local=location.hostname==='127.0.0.1'||location.hostname==='localhost';
+  const lub=$('localUnlockBtn');
+  if(lub) lub.style.display=local?'block':'none';
+  const u=$('loginUser');
+  if(u && !u.value) u.value='pocket';
+  try{ ($('loginPass')||u).focus(); }catch(_){}
+}
+function hideGate(){
+  const g=$('loginGate');
+  if(!g) return;
+  g.classList.remove('open');
+  g.style.display='none';
+}
 function setAuthTab(t){
   authTab=t;
-  $('tabLogin').classList.toggle('on', t==='login');
-  $('tabReg').classList.toggle('on', t==='register');
-  $('loginPane').style.display=t==='login'?'block':'none';
-  $('regPane').style.display=t==='register'?'block':'none';
-  $('loginErr').textContent='';
+  const tl=$('tabLogin'), tr=$('tabReg'), lp=$('loginPane'), rp=$('regPane');
+  if(tl) tl.classList.toggle('on', t==='login');
+  if(tr) tr.classList.toggle('on', t==='register');
+  if(lp) lp.style.display=t==='login'?'block':'none';
+  if(rp) rp.style.display=t==='register'?'block':'none';
+  setLoginErr('');
 }
 function storeSession(user, token, rem){
   // Always keep sessionStorage; persist to localStorage when remembered (default true)
-  sessionStorage.setItem('pocket_user', user||'');
-  sessionStorage.setItem('pocket_token', token||'');
-  sessionStorage.removeItem('pocket_pass');
-  localStorage.removeItem('pocket_pass');
-  // Production default: remember on this device so refresh stays signed in
-  const persist = rem!==false;
-  if(persist && token){
-    localStorage.setItem('pocket_user', user||'');
-    localStorage.setItem('pocket_token', token||'');
-  }
+  try{
+    sessionStorage.setItem('pocket_user', user||'');
+    sessionStorage.setItem('pocket_token', token||'');
+    sessionStorage.removeItem('pocket_pass');
+    localStorage.removeItem('pocket_pass');
+    const persist = rem!==false;
+    if(persist && token){
+      localStorage.setItem('pocket_user', user||'');
+      localStorage.setItem('pocket_token', token||'');
+    }
+  }catch(e){ console.warn('storeSession', e); }
 }
 async function finishLogin(u, token){
   storeSession(u, token, true);
   hideGate();
+  dismissBootSplash(true);
   try{
     await boot({afterLogin:true});
     toast('Signed in as '+u,'ok');
   }catch(bootErr){
     hideGate();
-    toast('Signed in','ok');
+    toast('Signed in — desk loading…','ok');
     console.warn('boot after login', bootErr);
   }
 }
-async function tryDesktopAutoLogin(){
+async function tryDesktopAutoLogin(force){
   // Electron / localhost only — host issues operator session without typing password
   if(location.hostname!=='127.0.0.1' && location.hostname!=='localhost') return false;
-  if(sessionStorage.getItem('pocket_token')||localStorage.getItem('pocket_token')) return false;
+  if(!force && (sessionStorage.getItem('pocket_token')||localStorage.getItem('pocket_token'))) return false;
   try{
     const r=await fetch('/v1/auth/desktop',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
     if(!r.ok) return false;
@@ -1044,21 +1182,40 @@ async function tryDesktopAutoLogin(){
   }catch(_){ return false; }
 }
 async function doLogin(){
-  const u=$('loginUser').value.trim();
-  const p=$('loginPass').value;
-  if(!u||!p){ $('loginErr').textContent='Username and password required (see ACCESS.txt)'; return; }
-  $('loginErr').textContent='Signing in…';
   try{
-    const r=await fetch('/v1/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:u,password:p})});
+    const uEl=$('loginUser'), pEl=$('loginPass'), btn=$('loginBtn');
+    const u=(uEl&&uEl.value||'').trim();
+    const p=(pEl&&pEl.value||'');
+    if(!u||!p){
+      setLoginErr('Username and password required.\nOwner: user pocket + password from %USERPROFILE%\\.pocket\\ACCESS.txt');
+      return;
+    }
+    setLoginErr('Signing in…');
+    if(btn) btn.disabled=true;
+    const r=await fetch('/v1/auth/login',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({user:u,password:p,username:u})
+    });
     let j={};
     try{ j=await r.json(); }catch(_){ j={ok:false,error:'Login returned non-JSON (HTTP '+r.status+')'}; }
     if(!r.ok||!j.ok){
-      $('loginErr').textContent=j.error||('Login failed HTTP '+r.status);
+      // Localhost fallback: desktop unlock if password login fails
+      if((location.hostname==='127.0.0.1'||location.hostname==='localhost')){
+        const auto=await tryDesktopAutoLogin(true);
+        if(auto){ if(btn) btn.disabled=false; return; }
+      }
+      setLoginErr(j.error||('Login failed HTTP '+r.status)+'\nTry owner user "pocket" + ACCESS.txt password, or Unlock this PC.');
+      if(btn) btn.disabled=false;
       return;
     }
-    if(!j.token){ $('loginErr').textContent='Server returned no session token'; return; }
+    if(!j.token){ setLoginErr('Server returned no session token'); if(btn) btn.disabled=false; return; }
     await finishLogin(u, j.token);
-  }catch(e){ $('loginErr').textContent=String(e.message||e)+' — host not reachable. Restart Desktop app.'; }
+    if(btn) btn.disabled=false;
+  }catch(e){
+    setLoginErr(String(e.message||e)+' — host not reachable on :8787. Run Ensure-POCKET-Up / Start-POCKET.');
+    const btn=$('loginBtn'); if(btn) btn.disabled=false;
+  }
 }
 async function doRegister(){
   try{
@@ -1141,11 +1298,17 @@ async function boot(opts){
   try{
     const e=status.engine||{};
     const pub=status.public_url||(status.how&&status.how.phone_anywhere);
-    if($('topMeta')) $('topMeta').innerHTML =
-      chip('Codex',e.codex)+chip('Grok',e.grok)+chip('Worker',e.worker_alive)+
-      `<span class="chip ${pub&&String(pub).startsWith('http')?'on':'warn'}">${pub&&String(pub).startsWith('http')?'Public':'LAN'}</span>`+
-      `<span class="chip on">v${status.version||''}</span>`+
-      `<span class="chip device-chip ${DEVICE.kind}">${DEVICE.label}</span>`;
+    if($('topMeta')){
+      const fc = status.first_class || status.class;
+      const grade = status.class || status.grade || '';
+      const classOn = status.first_class===true || grade==='A' || grade==='S';
+      $('topMeta').innerHTML =
+        chip('Codex',e.codex)+chip('Grok',e.grok)+chip('Worker',e.worker_alive)+
+        `<span class="chip ${pub&&String(pub).startsWith('http')?'on':'warn'}">${pub&&String(pub).startsWith('http')?'Public':'LAN'}</span>`+
+        (grade?`<span class="chip ${classOn?'on':'warn'}" title="GET /v1/class">Class ${esc(String(grade))}</span>`:'')+
+        `<span class="chip on">v${status.version||''}</span>`+
+        `<span class="chip device-chip ${DEVICE.kind}">${DEVICE.label}</span>`;
+    }
     if($('pubUrl')) $('pubUrl').innerHTML = pub&&String(pub).startsWith('http') ? ('Public <a href="'+pub+'" target="_blank">'+pub+'</a>') : 'Public host not set';
     const sel=$('wsSelect');
     if(sel){
@@ -1179,14 +1342,16 @@ async function boot(opts){
   }
   dismissBootSplash();
 }
-function dismissBootSplash(){
+function dismissBootSplash(immediate){
   const el=$('bootSplash');
-  if(!el||el.classList.contains('done')) return;
+  if(!el) return;
+  const finish=()=>{ el.classList.add('done'); el.setAttribute('aria-hidden','true'); el.style.pointerEvents='none'; };
+  if(immediate || el.classList.contains('done')){ finish(); return; }
   // Minimum show so the production intro is visible
-  const minMs=900;
+  const minMs=400;
   const started=window.__pocketBootAt||Date.now();
   const wait=Math.max(0, minMs-(Date.now()-started));
-  setTimeout(()=>{ el.classList.add('done'); el.setAttribute('aria-hidden','true'); }, wait);
+  setTimeout(finish, wait);
 }
 function goAppBack(){
   // Browser mode first: never leave the app via back when pane is open
@@ -1361,6 +1526,22 @@ async function newSess(mode){
     toast((mode||'session')+' · '+DEVICE.label);
   }catch(e){ toast('Could not start session: '+e.message); }
 }
+/** Activate Grok/Codex Novae hands in platform workspace (not founder personal disk for market). */
+async function activateNovae(id){
+  try{
+    const n=await api('/v1/novae/activate',{method:'POST',body:JSON.stringify({id, goal:'desk activate', host_power:true})});
+    if(!n.ok && n.error) throw new Error(n.error);
+    toast((n.title||id)+' · hands active');
+    if(n.session_id){
+      await refreshSessions();
+      await selectSess(n.session_id);
+    } else if(n.mode){
+      await newSess(n.mode);
+    }
+    if(DEVICE.kind==='phone') closeDrawers();
+    try{ pollSubagents(); }catch(_){}
+  }catch(e){ toast('Novae: '+(e.message||e),'err'); }
+}
 async function closeSess(id){
   try{
     // Stop running Grok/Codex jobs before deleting the tab
@@ -1439,6 +1620,17 @@ function emptyHint(mode){
     plan:'Describe the goal — plan only, no writes.',
     grok:'Message Grok. New messages stop the previous turn so work reorganizes. Use Stop / End in the header.',
     codex:'Message Codex. New messages stop the previous turn. Use Stop / End in the header.',
+    wsl:'Native Linux hands. Try: status · ! ls -la · run: git status · force: for soft-danger cmds.',
+    wsl_native:'Native WSL agent. Workspace ~/pocket-wsl. status · ! cmd · run: cmd. Founder-host only.',
+    linux:'Alias of WSL native agent.',
+    build:'Multi-agent ship loop (Emergent+). Try: list · parity · use_case:fullstack_web_app · or describe an app.',
+    ship:'Same as Build — plan→design→code→test→fix→ship until done.',
+    use_case:'Real use cases. Try: list · fullstack_web_app · api_microservice · test_troubleshoot.',
+    emergent:'Emergent-parity factory. parity · use_case:multi_agent_swarm.',
+    custom_agent:'Build agents with tools+subs. create Name: role · or run AgentId task.',
+    wiki:'Infinite Wiki. profile PATH · read_lines PATH A B · symbol NAME · index ROOT · search Q — never dump whole files.',
+    infinite_wiki:'Hierarchical code: Profile Card then line slices only.',
+    codebase:'Same as Infinite Wiki.',
     agent:'Silent multi-step (≤10). lookup … · schedule daily …',
     doer:'Silent multi-step (≤10). No chat — executes.',
     guppy:'help · lookup … · open apps · schedule daily …',
@@ -1748,15 +1940,29 @@ function renderTranscript(s){
       try{ pollSubagents(); }catch(_){}
     }
     if(m.status==='running'||m.status==='queued'||m.status==='cancelled'||m.result||m.error){
-      const a=document.createElement('div');
-      a.className='msg agent '+(m.status||'');
       const streaming=(m.status==='running'||m.status==='queued');
-      const raw=m.result||m.error||(streaming?'Thinking…':(m.status==='cancelled'?'Stopped — send a new message to reorganize.':''));
       const isTerm=s.mode==='term'||s.mode==='shell'||s.mode==='wsl';
+      const eng=m.engine||s.mode||'agent';
       const tok=m.stream_tokens?` · ~${m.stream_tokens} tok`:'';
-      a.innerHTML=`<div class="mh"><span><span class="live-dot" style="display:${streaming?'inline-block':'none'}"></span>${esc(m.engine||s.mode)}${esc(tok)}</span><span>${esc(m.status||'')}</span></div>
-        <div class="mb ${isTerm?'term':'prose'}">${isTerm?formatAgentBody(raw):formatProseBody(raw)}</div>`;
-      box.appendChild(a);
+      // Clean thinking state — orb animation while model works
+      if(streaming && !(m.result||m.error||m.stream_preview)){
+        const tr=document.createElement('div');
+        tr.className='think-row';
+        const novae=String(s.mode||'').includes('novae');
+        tr.innerHTML=`<div class="think-orb" aria-hidden="true"></div>
+          <span class="think-label"><b>${esc(eng)}</b> thinking${novae?' · Novae hands':''}</span>
+          <span class="think-dots" aria-hidden="true"><span></span><span></span><span></span></span>
+          <span style="margin-left:auto;font-size:11px;opacity:.75">${esc(String(workedSeconds(m)||0)+'s')}${esc(tok)}</span>`;
+        box.appendChild(tr);
+      } else {
+        const a=document.createElement('div');
+        a.className='msg agent '+(m.status||'');
+        const raw=m.result||m.error||(streaming?'':(m.status==='cancelled'?'Stopped — send a new message to reorganize.':''));
+        const novaeBadge=String(s.mode||'').includes('novae')?' <span class="novae-pill">Novae</span>':'';
+        a.innerHTML=`<div class="mh"><span><span class="live-dot" style="display:${streaming?'inline-block':'none'}"></span>${esc(eng)}${novaeBadge}${esc(tok)}</span><span>${esc(m.status||'')}</span></div>
+          <div class="mb ${isTerm?'term':'prose'}">${isTerm?formatAgentBody(raw):formatProseBody(raw||(streaming?'…':''))}</div>`;
+        box.appendChild(a);
+      }
     }
   });
   if(s.mode==='term' && s.terminal && s.terminal.log_tail){
@@ -1850,7 +2056,17 @@ function setPresets(mode){
     plan:[['Next features','Plan only: next 5 product features, ordered, with risks. No code.'],['Phone UX','Plan only: improve mobile UX. No implementation.']],
     term:[['List','Get-ChildItem'],['Python','python --version'],['Git','git status']],
     shell:[['Dir','dir'],['Git','git status']],
-    wsl:[['uname','uname -a'],['pwd','pwd && ls -la']],
+    wsl:[['Status','status'],['Workspace','! ls -la ~/pocket-wsl'],['Tools','! which python3 node npm git'],['Git','run: git status']],
+    wsl_native:[['Status','status'],['Workspace','! ls -la ~/pocket-wsl'],['Tools','! which python3 node npm git'],['Git','run: git status']],
+    linux:[['Status','status'],['Workspace','! ls -la ~/pocket-wsl']],
+    build:[['List use cases','list'],['Parity','parity'],['Full-stack app','use_case:fullstack_web_app'],['SaaS dashboard','use_case:saas_dashboard'],['API service','use_case:api_microservice']],
+    ship:[['Full-stack','use_case:fullstack_web_app'],['Ship swarm','use_case:multi_agent_swarm']],
+    use_case:[['List','list'],['Web app','fullstack_web_app'],['API','api_microservice'],['Custom agent','agent_inside_product'],['Test-fix','test_troubleshoot']],
+    emergent:[['Parity matrix','parity'],['Beat Emergent web app','use_case:fullstack_web_app'],['Swarm until done','use_case:multi_agent_swarm']],
+    custom_agent:[['List','list'],['Create support','create SupportAgent: customer support specialist'],['Help','help']],
+    wiki:[['Help','help'],['Profile server.py','profile C:/Users/Medin/OneDrive/pocket-os/src/pocket/server.py'],['Read lines 164-190','read_lines C:/Users/Medin/OneDrive/pocket-os/src/pocket/server.py 164 190'],['Find symbol','symbol get_file_profile'],['Index pocket src','index C:/Users/Medin/OneDrive/pocket-os/src/pocket'],['Search','search orchestrator']],
+    infinite_wiki:[['Help','help'],['Profile','profile C:/Users/Medin/OneDrive/pocket-os/src/pocket/infinite_wiki.py'],['Symbol','symbol read_file_lines']],
+    codebase:[['Help','help'],['Search','search infinite wiki']],
     handoff:[['Defer plan','Package a full research plan for multi-user seats and cost.']],
     claude:[['Review','Review for bugs and missing tests.']],
     agent:[['Lookup+bring back','lookup multi-agent desktop AI platforms 2026'],['Edge+calc+snip','open edge https://pocket.medinatechlabs.net/ then open calc then open snip'],['Daily schedule','schedule daily lookup AI agent news'],['10-step style','open explorer then open notepad then lookup POCKET multi-agent desk']],
@@ -1981,6 +2197,9 @@ function lightMarkdown(text){
   return blocks.join('');
 }
 function formatProseBody(body){
+  // Infinite Wiki Profile Card JSON → interactive card UI
+  const wikiHtml = tryRenderWikiCard(body);
+  if(wikiHtml) return wikiHtml;
   const prose=extractProse(body);
   // keep image embeds from original
   const imgs=[];
@@ -2005,6 +2224,133 @@ function formatProseBody(body){
     : '';
   return metaHtml+lightMarkdown(main||(imgs.length?'':'…'))+imgs.join('');
 }
+/** Parse Profile Card / goto JSON from agent output and render interactive UI. */
+function tryRenderWikiCard(body){
+  const raw=String(body||'').trim();
+  if(!raw || raw[0]!=='{' ) return '';
+  let j=null;
+  try{ j=JSON.parse(raw); }catch(_){
+    // try first JSON object embedded
+    const i=raw.indexOf('{'), k=raw.lastIndexOf('}');
+    if(i>=0 && k>i){
+      try{ j=JSON.parse(raw.slice(i,k+1)); }catch(__){ return ''; }
+    } else return '';
+  }
+  if(!j || typeof j!=='object') return '';
+  // goto_definition payload
+  if(Array.isArray(j.definitions)){
+    return renderGotoCard(j);
+  }
+  // profile card
+  if(j.ok && (j.symbols || j.sections) && (j.path || j.schema==='pocket.file_profile.v1')){
+    return renderProfileCard(j);
+  }
+  return '';
+}
+function renderProfileCard(card){
+  const path=card.path||'';
+  const id='wc_'+Math.random().toString(36).slice(2,9);
+  const ast=card.ast_engine||'heuristic';
+  const syms=(card.symbols||[]).slice(0,24);
+  const symHtml=syms.map(s=>{
+    const n=s.name||'?';
+    const ln=s.line||1;
+    const en=s.end_line||ln;
+    return `<button type="button" class="wc-sym" data-wiki-open="1" data-path="${esc(path)}" data-name="${esc(n)}" data-start="${ln}" data-end="${en}" title="Open definition L${ln}–L${en}">
+      <b>${esc(n)}</b><em>${esc(s.kind||'sym')} · L${ln}–L${en}</em>
+    </button>`;
+  }).join('') || '<span style="color:var(--muted);font-size:12px">No symbols</span>';
+  return `<div class="wiki-card" id="${id}" data-wiki-path="${esc(path)}">
+    <div class="wc-head">
+      <span class="wc-badge">Wiki</span>
+      <div class="wc-title"><b>${esc(card.name||path.split(/[/\\\\]/).pop()||'file')}</b>
+        <span>${esc(card.language||'')} · ${esc(String(card.line_count||'?'))} lines · ${esc(String((card.deps||[]).length))} deps</span>
+      </div>
+      <span class="wc-ast ${ast==='tree-sitter'?'ts':''}" title="AST engine">${esc(ast)}</span>
+    </div>
+    <div class="wc-sum">${esc((card.summary||'').slice(0,280))}</div>
+    <div class="wc-syms">${symHtml}</div>
+    <div class="wc-actions">
+      <button type="button" class="primary" data-wiki-open-top="1" data-path="${esc(path)}" data-name="${esc((syms[0]&&syms[0].name)||'')}" data-start="${(syms[0]&&syms[0].line)||1}" data-end="${(syms[0]&&syms[0].end_line)||40}">Open definition</button>
+      <button type="button" data-wiki-slice="1" data-path="${esc(path)}" data-start="1" data-end="40">Read head</button>
+      <button type="button" data-wiki-copy="1" data-path="${esc(path)}">Copy path</button>
+    </div>
+    <div class="wiki-slice" id="${id}_slice" style="display:none"><pre></pre></div>
+  </div>`;
+}
+function renderGotoCard(g){
+  const defs=g.definitions||[];
+  const rows=defs.slice(0,12).map(d=>`
+    <button type="button" class="wc-sym" data-wiki-open="1" data-path="${esc(d.path||'')}" data-name="${esc(d.name||g.name||'')}" data-start="${d.line||1}" data-end="${d.end_line||(d.line||1)}">
+      <b>${esc(d.name||'?')}</b><em>${esc((d.path||'').split(/[/\\\\]/).pop()||'')} · L${d.line||'?'}–L${d.end_line||'?'} ${d.via?('· '+d.via):''}</em>
+    </button>`).join('') || '<span style="color:var(--muted);font-size:12px">No definitions</span>';
+  return `<div class="wiki-card">
+    <div class="wc-head">
+      <span class="wc-badge">Def</span>
+      <div class="wc-title"><b>goto ${esc(g.name||'')}</b>
+        <span>${defs.length} hit(s)${g.from_path?(' · from '+esc(String(g.from_path).split(/[/\\\\]/).pop()||''))):''}</span>
+      </div>
+    </div>
+    <div class="wc-syms">${rows}</div>
+  </div>`;
+}
+async function openWikiDefinition(path, name, start, end){
+  if(!path){ toast('No path','err'); return; }
+  const s=Number(start)||1, e=Number(end)|| (s+30);
+  try{
+    // Prefer goto when we have a name (cross-file)
+    if(name){
+      try{
+        const g=await api('/v1/wiki/goto',{method:'POST',body:JSON.stringify({name, from_path:path})});
+        const d=(g.definitions||[])[0];
+        if(d && d.path){
+          path=d.path; start=d.line||s; end=d.end_line||e;
+        }
+      }catch(_){}
+    }
+    const slice=await api('/v1/wiki/lines',{method:'POST',body:JSON.stringify({path, start:Number(start)||s, end:Number(end)||e})});
+    if(!slice.ok){ toast(slice.error||'read failed','err'); return; }
+    // Find nearest card slice pane or append under transcript
+    let host=document.querySelector('.wiki-card[data-wiki-path="'+CSS.escape(path)+'"] .wiki-slice');
+    if(!host){
+      // last wiki-card slice or create ephemeral
+      const cards=document.querySelectorAll('.wiki-card .wiki-slice');
+      host=cards[cards.length-1]||null;
+    }
+    if(!host){
+      const box=$('transcript');
+      const wrap=document.createElement('div');
+      wrap.className='wiki-slice';
+      wrap.innerHTML='<pre></pre>';
+      box.appendChild(wrap);
+      host=wrap;
+      box.scrollTop=box.scrollHeight;
+    }
+    host.style.display='block';
+    const pre=host.querySelector('pre');
+    if(pre) pre.textContent = (name?('// '+name+' @ '+path+'\n'):('// '+path+'\n'))+(slice.text||'');
+    toast((name||'slice')+' · L'+(slice.start)+'–L'+(slice.end));
+  }catch(e){ toast('Open definition: '+(e.message||e),'err'); }
+}
+// Event delegation for wiki card buttons
+document.addEventListener('click', (ev)=>{
+  const t=ev.target.closest('[data-wiki-open],[data-wiki-open-top],[data-wiki-slice],[data-wiki-copy]');
+  if(!t) return;
+  ev.preventDefault();
+  const path=t.getAttribute('data-path')||'';
+  const name=t.getAttribute('data-name')||'';
+  const start=t.getAttribute('data-start')||'1';
+  const end=t.getAttribute('data-end')||'40';
+  if(t.hasAttribute('data-wiki-copy')){
+    try{ navigator.clipboard.writeText(path); toast('Path copied'); }catch(_){ toast(path); }
+    return;
+  }
+  if(t.hasAttribute('data-wiki-slice')){
+    openWikiDefinition(path, '', start, end);
+    return;
+  }
+  openWikiDefinition(path, name, start, end);
+});
 function saDotClass(w){
   const st=String(w.status||'idle').toLowerCase();
   if(/run|active|busy|queue|created/.test(st)) return 'run';
@@ -2665,25 +3011,47 @@ async function runHeadless(agentId){
 }
 function esc(s){return String(s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
 
-$('loginBtn').onclick=doLogin;
-$('regBtn').onclick=doRegister;
-$('loginPass').onkeydown=e=>{ if(e.key==='Enter') doLogin(); };
-$('input').addEventListener('keydown',e=>{
-  if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){ e.preventDefault(); sendMsg(); }
-  // Phone: Enter sends (Shift+Enter newline)
-  if(e.key==='Enter' && !e.shiftKey && DEVICE.kind==='phone'){ e.preventDefault(); sendMsg(); }
-  if(e.key==='Escape'){ closeComposerMenus(); }
-  // Tab accepts first @mention suggestion
-  if(e.key==='Tab'){
-    const mm=$('mentionMenu');
-    if(mm&&mm.classList.contains('open')){
-      const first=mm.querySelector('button');
-      if(first){ e.preventDefault(); first.click(); }
+// Login bindings — null-safe so a missing node never kills the rest of the desk JS
+(function bindLogin(){
+  const form=$('loginForm');
+  if(form) form.addEventListener('submit',e=>{ e.preventDefault(); doLogin(); });
+  const lb=$('loginBtn');
+  if(lb){ lb.onclick=function(e){ if(e) e.preventDefault(); doLogin(); }; }
+  const rb=$('regBtn');
+  if(rb) rb.onclick=doRegister;
+  const lp=$('loginPass');
+  if(lp) lp.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); doLogin(); } };
+  const lub=$('localUnlockBtn');
+  if(lub) lub.onclick=async()=>{
+    setLoginErr('Unlocking this PC…');
+    const ok=await tryDesktopAutoLogin(true);
+    if(!ok) setLoginErr('Local unlock failed — is host running on :8787?');
+  };
+  // Expose for inline handlers
+  window.doLogin=doLogin;
+  window.doRegister=doRegister;
+  window.setAuthTab=setAuthTab;
+})();
+const _inputEl=$('input');
+if(_inputEl){
+  _inputEl.addEventListener('keydown',e=>{
+    if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){ e.preventDefault(); sendMsg(); }
+    // Phone: Enter sends (Shift+Enter newline)
+    if(e.key==='Enter' && !e.shiftKey && DEVICE.kind==='phone'){ e.preventDefault(); sendMsg(); }
+    if(e.key==='Escape'){ closeComposerMenus(); }
+    // Tab accepts first @mention suggestion
+    if(e.key==='Tab'){
+      const mm=$('mentionMenu');
+      if(mm&&mm.classList.contains('open')){
+        const first=mm.querySelector('button');
+        if(first){ e.preventDefault(); first.click(); }
+      }
     }
-  }
-});
-$('input').addEventListener('input',()=>{ updateMentionMenu(); updateSlashMenu(); });
-$('fileInput').onchange=()=>{ const f=$('fileInput').files; if(f&&f.length) uploadFiles(f); $('fileInput').value=''; };
+  });
+  _inputEl.addEventListener('input',()=>{ updateMentionMenu(); updateSlashMenu(); });
+}
+const _fileIn=$('fileInput');
+if(_fileIn) _fileIn.onchange=()=>{ const f=$('fileInput').files; if(f&&f.length) uploadFiles(f); $('fileInput').value=''; };
 const _modelPick=$('modelPick');
 if(_modelPick){
   _modelPick.addEventListener('change', async()=>{

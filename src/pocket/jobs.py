@@ -19,11 +19,16 @@ JOBS_DIR.mkdir(parents=True, exist_ok=True)
 WORK_DIR.mkdir(parents=True, exist_ok=True)
 
 VALID_MODES = frozenset({
-    "codex", "claude", "shell", "ask", "plan", "wsl", "grok", "handoff", "term",
+    "codex", "claude", "shell", "ask", "plan", "wsl", "wsl_native", "linux", "grok", "handoff", "term",
     "desktop", "web", "nexus", "agent", "doer", "guppy", "browser",
     "capture", "repos", "copilot", "archon", "alpha", "workers",
     "woa", "wrapped-orch", "wrapped_orch", "mesie", "auro",
     "offload", "embody", "embodiment", "realworld",
+    "cowork", "work", "demo", "git", "forge", "sovereign-git", "ghost", "ghost-math", "math",
+    "build", "ship", "use_case", "emergent", "loop", "custom_agent",
+    "novae_grok", "novae_codex", "novae", "dual", "cortex", "subcortex", "swarm",
+    "wiki", "infinite_wiki", "codebase",
+    "dream", "duel", "capsule", "serendipity", "proof",
 })
 
 

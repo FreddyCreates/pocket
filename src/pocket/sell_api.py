@@ -56,15 +56,25 @@ def chat_complete(
     workspace: str = "workspace",
     api_key_id: str = "",
     sync: bool = True,
+    cwd: str = "",
+    inject_wiki: bool = True,
 ) -> Dict[str, Any]:
-    """OpenAI-shaped chat completion over a headless agent."""
+    """OpenAI-shaped chat completion over a headless agent.
+
+    Infinite Wiki inject (default on for coding agents): attaches Profile Cards
+    for paths/symbols so third-party API clients get hierarchical code context
+    without saturating context windows.
+    """
     # Flatten messages into a task
     parts = []
+    last_user = ""
     for m in messages or []:
         role = (m.get("role") or "user").lower()
         content = (m.get("content") or "").strip()
         if content:
             parts.append(f"{role}: {content}")
+            if role == "user":
+                last_user = content
     task = "\n".join(parts).strip()
     if not task:
         return {"ok": False, "error": "messages required"}
@@ -73,6 +83,33 @@ def chat_complete(
     if agent == "auto":
         routed = route_task(task)
         agent = routed.get("agent_id") or "planner"
+
+    wiki_meta: Dict[str, Any] = {"injected": False}
+    coding = agent in {
+        "coder",
+        "grok_coder",
+        "architect",
+        "planner",
+        "squad",
+        "security",
+        "reviewer",
+        "data",
+        "researcher",
+    }
+    if inject_wiki and coding:
+        try:
+            from pocket.infinite_wiki import inject_wiki_context
+
+            base = last_user or task
+            injected = inject_wiki_context(base, cwd=cwd or workspace or "")
+            if injected != base:
+                wiki_meta = {"injected": True, "chars": len(injected)}
+                # Keep multi-turn envelope but enrich the working task
+                task = injected if not last_user else task.replace(last_user, injected, 1)
+                if last_user and last_user not in task:
+                    task = injected
+        except Exception as e:
+            wiki_meta = {"injected": False, "error": str(e)[:120]}
 
     res = run_headless(
         agent,
@@ -118,6 +155,7 @@ def chat_complete(
             "agent": meta,
             "job_id": res.get("job_id"),
             "status": res.get("status"),
+            "infinite_wiki": wiki_meta,
             "error": res.get("error") or "",
             "steps": res.get("steps"),
         },
@@ -132,10 +170,32 @@ def run_agent_api(
     sync: bool = True,
     api_key_id: str = "",
     extra: str = "",
+    cwd: str = "",
+    inject_wiki: bool = True,
 ) -> Dict[str, Any]:
+    wiki_meta: Dict[str, Any] = {"injected": False}
+    task_use = task
+    if inject_wiki and (agent_id or "").lower() in {
+        "coder",
+        "grok_coder",
+        "architect",
+        "planner",
+        "squad",
+        "security",
+        "reviewer",
+    }:
+        try:
+            from pocket.infinite_wiki import inject_wiki_context
+
+            inj = inject_wiki_context(task, cwd=cwd or workspace or "")
+            if inj != task:
+                task_use = inj
+                wiki_meta = {"injected": True, "chars": len(inj)}
+        except Exception as e:
+            wiki_meta = {"injected": False, "error": str(e)[:120]}
     res = run_headless(
         agent_id,
-        task,
+        task_use,
         workspace=workspace,
         sync=sync,
         extra=extra,
@@ -145,6 +205,8 @@ def run_agent_api(
     pock = int(res.get("pock") or meta.get("pock") or 0)
     if api_key_id:
         record_usage(api_key_id, agent=agent_id, pock=pock)
+    if isinstance(res, dict):
+        res = {**res, "infinite_wiki": wiki_meta}
     return res
 
 

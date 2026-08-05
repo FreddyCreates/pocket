@@ -125,6 +125,41 @@ def try_generate(prompt: str, *, max_tokens: int = 128) -> Dict[str, Any]:
 
 
 def run_auro_job(prompt: str) -> Tuple[str, str, str]:
+    """Prefer vendored meaning model (browser parity); fall back to full Auro14B LMR."""
+    low = (prompt or "").lower().strip()
+    # meaning path first — small trained/exported model.json + NumPy
+    if low.startswith("meaning") or low.startswith("web ") or low.startswith("ids ") or low in (
+        "meaning",
+        "browser",
+        "model.json",
+    ):
+        try:
+            from pocket.auro_meaning import run_auro_meaning_job
+
+            p = prompt.split(" ", 1)[1] if " " in prompt and low.split()[0] in ("meaning", "web") else prompt
+            return run_auro_meaning_job(p)
+        except Exception as e:
+            pass
+
+    try:
+        from pocket.auro_meaning import run_auro_meaning_job, status as meaning_status
+
+        ms = meaning_status()
+        if ms.get("ok") and low in ("", "status", "help", "who"):
+            text, err, eng = run_auro_meaning_job("status")
+            st = status()
+            text += (
+                f"\n---\n## Full Auro14B host\n"
+                f"**Root:** `{st.get('root')}` ckpt exists={st.get('checkpoint_exists')}\n"
+                f"Use a real question for native LMR, or `ids 1,2,3` for meaning model.\n"
+            )
+            return text, err, eng
+        # short prompts → meaning generate; long research → native
+        if ms.get("ok") and len(prompt or "") < 200 and not low.startswith("native "):
+            return run_auro_meaning_job(prompt)
+    except Exception:
+        pass
+
     st = status()
     lines = [
         "# Auro14B · native LMR\n\n",
@@ -134,12 +169,18 @@ def run_auro_job(prompt: str) -> Tuple[str, str, str]:
         f"## Prompt\n{prompt or '(status)'}\n\n",
     ]
     if not st.get("ok"):
-        return "".join(lines), "Auro14B not found", "auro"
-    low = (prompt or "").lower()
+        # still try meaning-only install
+        try:
+            from pocket.auro_meaning import run_auro_meaning_job
+
+            return run_auro_meaning_job(prompt)
+        except Exception:
+            return "".join(lines), "Auro14B not found", "auro"
     if low in ("", "status", "help", "who"):
         lines.append("Use a real question to run `auro_native_llm.use` once.\n")
+        lines.append("Or `meaning status` / open **/auro/** for the browser piece.\n")
         return "".join(lines), "", "auro"
-    gen = try_generate(prompt)
+    gen = try_generate(prompt.replace("native ", "", 1) if low.startswith("native ") else prompt)
     if gen.get("ok"):
         lines.append("## Native output\n```\n")
         lines.append(gen.get("stdout") or "")

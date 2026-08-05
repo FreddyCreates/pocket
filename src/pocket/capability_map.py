@@ -19,6 +19,14 @@ def build_capability_map() -> Dict[str, Any]:
         "infra": {},
         "safety": {},
         "ai_workspace": {},
+        "infinite_wiki": {
+            "get_file_profile": "POST /v1/wiki/profile {path}",
+            "read_file_lines": "POST /v1/wiki/lines {path,start,end}",
+            "find_symbol": "POST /v1/wiki/symbol {name}",
+            "search": "POST /v1/wiki/search {q}",
+            "index_tree": "POST /v1/wiki/index {root}",
+            "rule": "Never load whole multi-kLOC files — profile then slice",
+        },
         "tips": [],
     }
     try:

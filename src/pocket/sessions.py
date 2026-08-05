@@ -22,6 +22,15 @@ MODES = frozenset({
     "capture", "repos", "copilot", "archon", "alpha", "workers",
     "woa", "wrapped-orch", "wrapped_orch",
     "offload", "embody", "embodiment", "realworld",
+    "cowork", "work", "demo", "git", "forge", "sovereign-git", "ghost", "ghost-math", "math",
+    # Novae hands — Grok/Codex instances in platform workspace
+    "novae_grok", "novae_codex", "novae-grok", "novae-codex", "novae",
+    "mesie", "auro", "auro14b",
+    "wsl_native", "wsl-native", "linux",
+    "build", "ship", "use_case", "emergent", "loop", "custom_agent",
+    "dual", "cortex", "subcortex", "swarm", "work",
+    "wiki", "infinite_wiki", "codebase",
+    "dream", "duel", "capsule", "serendipity", "proof",
 })
 
 
@@ -148,6 +157,32 @@ def create_session(
         "archon": "ARCHON · desk alpha",
         "alpha": "ARCHON · desk alpha",
         "workers": "Latin workers roster",
+        "novae_grok": "Grok Novae · hands",
+        "novae_codex": "Codex Novae · hands",
+        "novae-grok": "Grok Novae · hands",
+        "novae-codex": "Codex Novae · hands",
+        "novae": "Grok Novae · hands",
+        "offload": "Offload · real world",
+        "mesie": "MESIE spectral",
+        "auro": "Auro14B",
+        "wsl": "WSL · native Linux hands",
+        "wsl_native": "WSL · native Linux hands",
+        "wsl-native": "WSL · native Linux hands",
+        "linux": "WSL · native Linux hands",
+        "build": "Build loop · multi-agent ship",
+        "ship": "Build loop · multi-agent ship",
+        "use_case": "Real use case runner",
+        "emergent": "Emergent-parity ship factory",
+        "loop": "Managed agent loop",
+        "custom_agent": "Custom agent builder",
+        "wiki": "Infinite Wiki · hierarchical code",
+        "infinite_wiki": "Infinite Wiki · hierarchical code",
+        "codebase": "Infinite Wiki · hierarchical code",
+        "dream": "Dream Mode · idle consolidator",
+        "duel": "Agent Duels · propose & judge",
+        "capsule": "Time Capsules · future instructions",
+        "serendipity": "Serendipity · unexpected links",
+        "proof": "Proof chain · work receipts",
     }
     # Number parallel sessions of same mode so tabs stay distinct (Codex 1, Codex 2…)
     mode_n = 1

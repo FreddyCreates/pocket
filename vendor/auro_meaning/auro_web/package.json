@@ -1,0 +1,9 @@
+{
+  "name": "auro-web",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Portable browser/Node runtime for the Auro decoder-only architecture (RMSNorm/RoPE/GQA/SwiGLU).",
+  "main": "auro.js",
+  "exports": { ".": "./auro.js" },
+  "license": "SEE LICENSE IN ../LICENSE"
+}

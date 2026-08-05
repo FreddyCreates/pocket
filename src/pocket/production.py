@@ -7,11 +7,14 @@ import shutil
 from pathlib import Path
 from typing import Any, Dict, List
 
-VERSION = "1.2.0"
+try:
+    from pocket import __version__ as VERSION
+except Exception:
+    VERSION = "2.1.0"
 
 
 def checklist() -> Dict[str, Any]:
-    """A–Z production checklist with live checks."""
+    """A–Z production checklist with live checks + first-class pillars."""
     from pocket.auth import ACCESS_NOTE, expected_user
     from pocket.nexus_bridge import nexus_available
     from pocket.users import invite_code, list_users
@@ -73,7 +76,7 @@ def checklist() -> Dict[str, Any]:
     nx = nexus_available()
     add("N", "NEXUS available", bool(nx.get("ok")), nx.get("root") or "", "P2")
     # O Onboarding
-    add("O", "Onboarding / ready API", True, "/v1/ready + UI first-run", "P1")
+    add("O", "Onboarding / ready API", True, "/v1/ready + /v1/class", "P1")
     # P Production checklist
     add("P", "This production matrix", True, "GET /v1/ready", "P0")
     # Q Quota
@@ -109,6 +112,25 @@ def checklist() -> Dict[str, Any]:
         "Invite-only seats on operator host — not public multi-tenant SaaS",
         "P0",
     )
+
+    # First-class extensions (live)
+    try:
+        from pocket.first_class import report as fc_report
+
+        fc = fc_report()
+        sc = fc.get("score") or {}
+        add(
+            "FC",
+            "First-class score",
+            bool(sc.get("first_class")),
+            f"grade={sc.get('grade')} {sc.get('percent')}% {sc.get('passed')}/{sc.get('total')}",
+            "P1",
+        )
+        add("IW", "Infinite Wiki", True, "profile→slice hierarchy", "P1")
+        add("SW", "Always-on swarm", True, "GET /v1/swarm", "P1")
+        add("DL", "Dual-loop Cortex/Subcortex", True, "POST /v1/dual", "P1")
+    except Exception as e:
+        add("FC", "First-class score", False, str(e)[:80], "P1")
 
     ok_n = sum(1 for i in items if i["ok"])
     p0_fail = [i for i in items if not i["ok"] and i["severity"] == "P0"]

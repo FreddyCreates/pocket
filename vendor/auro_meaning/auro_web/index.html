@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Auro — POCKET meaning piece (browser)</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 15px/1.6 system-ui, sans-serif; margin: 0; padding: 24px; max-width: 720px; }
+  h1 { font-size: 1.3rem; margin: 0 0 2px; }
+  .sub { opacity: .7; margin: 0 0 18px; }
+  .card { border: 1px solid #8884; border-radius: 10px; padding: 16px; margin: 12px 0; }
+  label { font-weight: 600; display: block; margin-bottom: 6px; }
+  input, button { font: inherit; padding: 8px 10px; border-radius: 6px; border: 1px solid #8886; }
+  button { cursor: pointer; background: #8882; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
+  code, #out { font-family: ui-monospace, monospace; }
+  #out { white-space: pre-wrap; background: #8881; border-radius: 8px; padding: 12px; min-height: 40px; }
+  .pill { display: inline-block; background: #8882; border-radius: 999px; padding: 2px 10px; margin: 2px; font-size: 12px; }
+</style>
+</head>
+<body>
+<h1>Auro — running in your browser</h1>
+<p class="sub">POCKET-hosted meaning piece: RMSNorm · RoPE · GQA · SwiGLU. Same architecture as the
+NumPy host path. Load <code>model.json</code> weights and generate client-side — no API key.
+Train on host (when <code>train_lm</code>/<code>autograd</code> are present) → export → this page.</p>
+
+<div class="card" id="meta">loading model…</div>
+
+<div class="card">
+  <label for="prompt">Prompt token ids (comma-separated)</label>
+  <div class="row">
+    <input id="prompt" value="3, 1, 4" size="24" />
+    <div><label for="n">new tokens</label><input id="n" type="number" value="8" min="1" max="24" size="4" /></div>
+    <div><label for="temp">temperature</label><input id="temp" type="number" value="0" min="0" max="2" step="0.1" size="4" /></div>
+    <button id="go">Generate</button>
+  </div>
+</div>
+
+<div class="card"><label>Output token ids</label><div id="out">—</div></div>
+
+<script type="module">
+import { AuroModel } from './auro.js';
+
+let model;
+(async () => {
+  try {
+    model = await AuroModel.load('./model.json');
+    const c = model.c;
+    document.getElementById('meta').innerHTML =
+      `<b>model loaded</b> — architecture faithful, runs client-side` +
+      `<div>` +
+      `<span class="pill">hidden ${c.hidden_size}</span>` +
+      `<span class="pill">${c.n_layers} layers</span>` +
+      `<span class="pill">${c.n_heads} q-heads → ${c.n_kv_heads} kv-heads (GQA ${c.n_heads / c.n_kv_heads}:1)</span>` +
+      `<span class="pill">vocab ${c.vocab_size}</span>` +
+      `<span class="pill">RoPE θ=${c.rope_theta}</span>` +
+      `</div>`;
+  } catch (e) {
+    document.getElementById('meta').textContent = 'could not load model.json — ' + e.message +
+      ' (serve this folder over http, e.g. `python3 -m http.server`)';
+  }
+})();
+
+document.getElementById('go').addEventListener('click', () => {
+  if (!model) return;
+  const prompt = document.getElementById('prompt').value.split(',')
+    .map(s => parseInt(s.trim(), 10)).filter(n => !Number.isNaN(n));
+  const maxNewTokens = parseInt(document.getElementById('n').value, 10) || 8;
+  const temperature = parseFloat(document.getElementById('temp').value) || 0;
+  const t0 = performance.now();
+  const out = model.generate(prompt, { maxNewTokens, temperature });
+  const dt = (performance.now() - t0).toFixed(1);
+  document.getElementById('out').textContent =
+    `[${out.join(', ')}]\n\n${maxNewTokens} tokens in ${dt} ms`;
+});
+</script>
+</body>
+</html>

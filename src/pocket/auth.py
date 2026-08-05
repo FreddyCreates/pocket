@@ -49,6 +49,11 @@ PUBLIC_PATHS = frozenset({
     "/app",
     "/desktop",
     "/chat",
+    "/phone",
+    "/m",
+    "/mobile",
+    "/phone/",
+    "/m/",
     "/v1/auth/login",
     "/v1/auth/register",
     "/v1/auth/desktop",
@@ -56,13 +61,38 @@ PUBLIC_PATHS = frozenset({
     "/v1/ai",
     "/v1/ai/agents",
     "/v1/ai/pricing",
+    "/v1/novae",
+    "/v1/novae/status",
+    "/v1/novae/list",
+    "/v1/use-cases",
+    "/v1/usecases",
+    "/v1/parity",
+    "/v1/emergent",
     "/v1/ready",
+    "/v1/class",
+    "/v1/first-class",
+    "/v1/grade",
     "/v1/legal",
     "/v1/ai/openapi",
     # Desktop Electron package downloads (public — same as marketing landing)
     "/download",
     "/download/desktop",
     "/download/windows",
+    "/license",
+    "/license/text",
+    "/docs",
+    "/docs/hub",
+    "/work",
+    "/work-studio",
+    "/studio/work",
+    "/curiosities",
+    "/lab",
+    "/weird",
+    "/v1/license",
+    "/v1/license/accept",
+    "/forge",
+    "/git",
+    "/auro",
     "/v1/desktop/releases",
     "/v1/product/channels",
     "/v1/channels",
@@ -72,6 +102,7 @@ PUBLIC_PATHS = frozenset({
 PUBLIC_PREFIXES = (
     "/download/files/",
     "/download/desktop/",
+    "/auro/",
 )
 
 # Rate limit failed logins: max N failures per IP per window
@@ -271,12 +302,18 @@ def is_authorized(headers: Mapping[str, str]) -> bool:
             pass
 
     # Sellable AI API keys (Bearer sk_pocket_… or X-API-Key)
+    # Also accept Bearer session tokens (non sk_pocket_) via user_from_token
     try:
         from pocket.api_keys import extract_bearer, verify_key
 
         raw_key = extract_bearer(headers)
         if raw_key and raw_key.startswith("sk_pocket_") and verify_key(raw_key):
             return True
+        if raw_key and not raw_key.startswith("sk_pocket_"):
+            from pocket.users import user_from_token
+
+            if user_from_token(raw_key.strip()):
+                return True
     except Exception:
         pass
 
@@ -346,13 +383,21 @@ def security_headers() -> list[tuple[str, str]]:
         ("X-Frame-Options", "DENY"),
         ("Referrer-Policy", "no-referrer"),
         ("Cache-Control", "no-store"),
-        # CSP for the app UI
+        ("X-Permitted-Cross-Domain-Policies", "none"),
+        ("Cross-Origin-Opener-Policy", "same-origin"),
+        ("Cross-Origin-Resource-Policy", "same-site"),
+        # CSP for the app UI — tight default; inline needed for single-file desk/phone
         (
             "Content-Security-Policy",
-            "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; "
+            "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; "
             "script-src 'self' 'unsafe-inline'; connect-src 'self'; "
-            "media-src 'self'; frame-ancestors 'none'",
+            "media-src 'self' blob:; frame-src 'self'; frame-ancestors 'none'; "
+            "base-uri 'self'; form-action 'self'; object-src 'none'",
         ),
         # mic allowed for voice-to-text in desk UI
-        ("Permissions-Policy", "camera=(), microphone=(self), geolocation=()"),
+        (
+            "Permissions-Policy",
+            "camera=(), microphone=(self), geolocation=(), payment=(), usb=(), interest-cohort=()",
+        ),
+        ("X-Pocket-License", "Researcher-1.0"),
     ]

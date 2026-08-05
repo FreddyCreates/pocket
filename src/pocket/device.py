@@ -116,4 +116,13 @@ def should_inject_context(mode: str) -> bool:
         "handoff",
         "ask",
         "browser",
+        "novae_grok",
+        "novae_codex",
+        "novae",
+        "build",
+        "wiki",
+        "infinite_wiki",
+        "codebase",
+        "dual",
+        "archon",
     }

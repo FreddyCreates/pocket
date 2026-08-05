@@ -14,6 +14,9 @@ from urllib.parse import parse_qs, urlparse  # studio file query
 
 from pocket.app_ui import HTML
 from pocket.studio_ui import STUDIO_HTML
+from pocket.phone_ui import phone_html, phone_manifest
+from pocket.work_studio_ui import work_studio_html
+from pocket.curiosities_ui import curiosities_html
 from pocket.auth import (
     auth_summary,
     clear_auth_failures,
@@ -184,6 +187,45 @@ def ensure_embedded_worker() -> None:
             ensure_vision()
         except Exception:
             pass
+        try:
+            from pocket.world_model import ensure_db
+
+            ensure_db()
+        except Exception:
+            pass
+        try:
+            from pocket.always_on_swarm import ensure_running as ensure_swarm
+
+            # Always-on swarm — continuous multi-agent pulses
+            ensure_swarm()
+            print("[POCKET] always-on swarm armed", flush=True)
+        except Exception as e:
+            print(f"[POCKET] swarm arm skipped: {e}", flush=True)
+        try:
+            from pocket.infinite_wiki import ensure_db as wiki_db, ensure_watcher as wiki_watch
+
+            from pocket.infinite_wiki import ensure_default_index
+
+            wiki_db()
+            wiki_watch(interval_sec=10)
+            # background index if empty — don't block HTTP
+            threading.Thread(
+                target=ensure_default_index,
+                name="wiki-boot-index",
+                daemon=True,
+            ).start()
+            print("[POCKET] infinite wiki watcher armed", flush=True)
+        except Exception as e:
+            print(f"[POCKET] infinite wiki skipped: {e}", flush=True)
+        try:
+            from pocket.dream_mode import ensure_running as ensure_dreams
+            from pocket.time_capsules import ensure_running as ensure_capsules
+
+            ensure_dreams()
+            ensure_capsules()
+            print("[POCKET] dream mode + time capsules armed", flush=True)
+        except Exception as e:
+            print(f"[POCKET] curiosities arm skipped: {e}", flush=True)
 
         def _loop():
             while True:
@@ -231,13 +273,25 @@ def status() -> dict:
     ip = lan_ip()
     n = len(list_sessions(100))
     tok = token_snapshot()
+    klass = {}
+    try:
+        from pocket.first_class import health_enrichment
+
+        klass = health_enrichment()
+    except Exception:
+        pass
+    from pocket import __version__ as _ver, TAGLINE
+
     return {
         "ok": True,
         "product": "POCKET",
-        "full": "POCKET Multi-Agent Platform",
-        "version": __import__("pocket").__version__,
+        "version": _ver,
+        "tagline": TAGLINE,
+        "class": klass.get("grade") or "?",
+        "first_class": bool(klass.get("first_class")),
+        "class_score": klass.get("score"),
+        "full": "POCKET First-Class Host Co-Pilot",
         "schema": "pocket.status.v1",
-        "tagline": "POCKET — host co-pilot platform API (workers · vision · campaigns)",
         "lan_ip": ip,
         "port": PORT,
         "url": f"http://{ip}:{PORT}/",
@@ -282,8 +336,17 @@ def status() -> dict:
 
 
 class Handler(BaseHTTPRequestHandler):
-    def log_message(self, *a):
-        pass
+    def log_message(self, fmt, *a):
+        try:
+            print("[http]", fmt % a, flush=True)
+        except Exception:
+            pass
+
+    def log_error(self, fmt, *a):
+        try:
+            print("[http-error]", fmt % a, flush=True)
+        except Exception:
+            pass
 
     def _sec_headers(self):
         for k, v in security_headers():
@@ -400,6 +463,22 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
+        try:
+            self._do_GET_inner()
+        except Exception as e:
+            import traceback
+
+            print("[do_GET crash]", e, flush=True)
+            traceback.print_exc()
+            try:
+                self._json(500, {"ok": False, "error": str(e)[:300]})
+            except Exception:
+                try:
+                    self.close_connection = True
+                except Exception:
+                    pass
+
+    def _do_GET_inner(self):
         u = urlparse(self.path)
         path = u.path.rstrip("/") or "/"
         q = parse_qs(u.query)
@@ -463,7 +542,25 @@ class Handler(BaseHTTPRequestHandler):
             from pocket.marketing_landing import get_app_html
 
             return self._html(get_app_html())
-        # --- Desktop Electron package downloads (public) ---
+        # --- Docs hub + Researcher License ---
+        if path in ("/docs", "/docs/", "/docs/hub", "/docs/hub/"):
+            from pocket.docs_hub import docs_hub_html
+
+            return self._html(docs_hub_html())
+        if path in ("/license", "/license/"):
+            from pocket.docs_hub import license_page_html
+
+            return self._html(license_page_html())
+        if path in ("/license/text", "/license/text/"):
+            from pocket.docs_hub import license_text
+
+            return self._text(200, license_text())
+        if path in ("/v1/license", "/v1/license/"):
+            from pocket.license_gate import license_meta
+
+            return self._json(200, license_meta())
+
+        # --- Desktop Electron package downloads (Researcher License gate) ---
         if path in ("/download", "/download/"):
             from pocket.desktop_releases import download_page_html
 
@@ -474,7 +571,19 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, catalog())
         if path in ("/download/desktop", "/download/windows", "/download/desktop/windows"):
             from pocket.desktop_releases import preferred_artifact, list_artifacts
+            from pocket.license_gate import download_allowed
 
+            qtok = (q.get("license_token") or q.get("token") or [""])[0]
+            if not download_allowed(self.headers, qtok):
+                return self._json(
+                    403,
+                    {
+                        "ok": False,
+                        "error": "Researcher License required",
+                        "accept": "POST /v1/license/accept or open /download",
+                        "license": "/license",
+                    },
+                )
             qkind = (q.get("kind") or ["portable"])[0]
             qarch = (q.get("arch") or [None])[0]
             art = preferred_artifact(arch=qarch, kind=qkind)
@@ -491,6 +600,9 @@ class Handler(BaseHTTPRequestHandler):
                 )
             # Redirect to file URL so browsers get Content-Disposition attachment
             loc = art.get("url") or f"/download/files/{art.get('name')}"
+            if qtok:
+                sep = "&" if "?" in loc else "?"
+                loc = f"{loc}{sep}license_token={qtok}"
             self.send_response(302)
             self.send_header("Location", loc)
             self._sec_headers()
@@ -498,8 +610,20 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path.startswith("/download/files/"):
             from pocket.desktop_releases import resolve_file
+            from pocket.license_gate import download_allowed
             import mimetypes
 
+            qtok = (q.get("license_token") or q.get("token") or [""])[0]
+            if not download_allowed(self.headers, qtok):
+                return self._json(
+                    403,
+                    {
+                        "ok": False,
+                        "error": "Researcher License required before binary download",
+                        "accept": "POST /v1/license/accept",
+                        "page": "/download",
+                    },
+                )
             name = path.split("/download/files/", 1)[-1]
             fp = resolve_file(name)
             if not fp:
@@ -515,13 +639,28 @@ class Handler(BaseHTTPRequestHandler):
                 "Content-Disposition",
                 f'attachment; filename="{fp.name}"',
             )
-            self.send_header("Cache-Control", "public, max-age=300")
+            self.send_header("Cache-Control", "private, max-age=300")
             self._sec_headers()
             self.end_headers()
             self.wfile.write(data)
             return
         if path in ("/desk", "/app", "/desktop", "/chat"):
             return self._html(HTML)
+        if path in ("/phone", "/m", "/mobile", "/phone/", "/m/", "/mobile/"):
+            return self._html(phone_html())
+        if path in ("/work", "/work-studio", "/studio/work", "/work/", "/work-studio/"):
+            return self._html(work_studio_html())
+        if path in ("/curiosities", "/lab", "/weird", "/curiosities/"):
+            return self._html(curiosities_html())
+        if path in ("/phone/manifest.webmanifest", "/m/manifest.webmanifest"):
+            data = phone_manifest().encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/manifest+json; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self._sec_headers()
+            self.end_headers()
+            self.wfile.write(data)
+            return
         if path in ("/developers", "/api", "/docs/api"):
             from pocket.developers_ui import developers_html
 
@@ -529,7 +668,7 @@ class Handler(BaseHTTPRequestHandler):
         if path in ("/studio", "/studio/"):
             return self._html(STUDIO_HTML)
         if path in ("/health", "/v1/health"):
-            from pocket import __version__ as _pv
+            from pocket import __version__ as _pv, TAGLINE, LAB
 
             heart = {"ok": True, "interval_ms": 873}
             try:
@@ -542,19 +681,41 @@ class Handler(BaseHTTPRequestHandler):
                     heart["stale"] = (_t.time() - float(heart.get("ts") or 0)) > 3.0
             except Exception:
                 pass
+            klass = {}
+            try:
+                from pocket.first_class import health_enrichment
+
+                klass = health_enrichment()
+            except Exception:
+                pass
             return self._json(
                 200,
                 {
                     "ok": True,
                     "service": "pocket",
                     "version": _pv,
+                    "class": klass.get("grade") or "?",
+                    "first_class": bool(klass.get("first_class")),
+                    "class_score": klass.get("score"),
+                    "tagline": TAGLINE,
+                    "lab": LAB,
                     "heart": "beating",
                     "heartbeat": heart,
                     "brain": "online",
                     "auth": "required-for-app",
                     "product": True,
                     "api": "platform",
-                    "surfaces": ["landing", "desk", "api", "studio", "mesie"],
+                    "surfaces": [
+                        "landing",
+                        "desk",
+                        "phone",
+                        "work",
+                        "api",
+                        "studio",
+                        "wiki",
+                        "swarm",
+                        "download",
+                    ],
                     "default_codex_cwd": "E:\\PARALLAX-Exchange-Clearinghouse",
                 },
             )
@@ -575,7 +736,52 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/v1/ready":
             from pocket.production import checklist
 
-            return self._json(200, checklist())
+            out = checklist()
+            try:
+                from pocket.first_class import report as fc_report
+
+                out["first_class"] = fc_report().get("score")
+            except Exception:
+                pass
+            return self._json(200, out)
+        if path in ("/v1/class", "/v1/first-class", "/v1/grade"):
+            from pocket.first_class import report as fc_report
+
+            return self._json(200, fc_report())
+        if path in ("/v1/dreams", "/v1/dream"):
+            from pocket.dream_mode import list_dreams, status as dream_status
+
+            st = dream_status()
+            st["recent"] = list_dreams(12)
+            return self._json(200, st)
+        if path in ("/v1/duels",):
+            from pocket.agent_duels import list_duels
+
+            return self._json(200, {"ok": True, "duels": list_duels()})
+        if path.startswith("/v1/duels/"):
+            from pocket.agent_duels import get_duel
+
+            did = path.rstrip("/").split("/")[-1]
+            d = get_duel(did)
+            if not d:
+                return self._json(404, {"ok": False, "error": "duel not found"})
+            return self._json(200, d)
+        if path in ("/v1/capsules", "/v1/time-capsules"):
+            from pocket.time_capsules import status as cap_status
+
+            return self._json(200, cap_status())
+        if path in ("/v1/serendipity", "/v1/links"):
+            from pocket.serendipity import find_links
+
+            return self._json(200, find_links(limit=10))
+        if path in ("/v1/proofs", "/v1/receipts"):
+            from pocket.proof_chain import status as proof_status
+
+            return self._json(200, proof_status())
+        if path in ("/v1/proofs/verify", "/v1/receipts/verify"):
+            from pocket.proof_chain import verify_chain
+
+            return self._json(200, verify_chain())
         if path == "/v1/legal":
             legal = DOCS_ROOT_MAIN / "LEGAL.md"
             if legal.exists():
@@ -1393,6 +1599,121 @@ class Handler(BaseHTTPRequestHandler):
             if not fp.exists():
                 return self._json(404, {"error": "file missing", "path": str(fp)})
             return self._text(200, fp.read_text(encoding="utf-8"))
+        if path in ("/v1/wsl", "/v1/wsl/status", "/v1/wsl/probe"):
+            from pocket.wsl_agent import status as wsl_status
+
+            # Public-ish probe is host-sensitive — require auth
+            if not self._require_auth(path):
+                return
+            return self._json(200, wsl_status())
+        if path in ("/v1/use-cases", "/v1/usecases", "/v1/parity", "/v1/emergent"):
+            from pocket.use_cases import list_use_cases, parity_report
+
+            if path.endswith("parity") or path.endswith("emergent"):
+                return self._json(200, parity_report())
+            return self._json(200, {"ok": True, "use_cases": list_use_cases(), "parity": "/v1/parity"})
+        if path in ("/v1/work-studio", "/v1/work/types", "/v1/work-types"):
+            from pocket.work_types import catalog, list_types
+
+            if path.endswith("types") or path.endswith("work-types"):
+                return self._json(200, {"ok": True, "types": list_types()})
+            return self._json(200, catalog())
+        if path in ("/v1/work-loops",):
+            from pocket.work_types import list_loops
+
+            return self._json(200, {"ok": True, "loops": list_loops()})
+        if path in ("/v1/swarm", "/v1/swarm/status"):
+            from pocket.always_on_swarm import status as swarm_status
+
+            return self._json(200, swarm_status())
+        if path in ("/v1/world-model", "/v1/world"):
+            from pocket.world_model import status as wm_status
+
+            return self._json(200, wm_status())
+        if path in ("/v1/wiki", "/v1/infinite-wiki", "/v1/wiki/status"):
+            from pocket.infinite_wiki import status as wiki_status
+
+            return self._json(200, wiki_status())
+        if path in ("/v1/wiki/profile", "/v1/wiki/get_file_profile"):
+            from pocket.infinite_wiki import get_file_profile
+            from urllib.parse import unquote
+
+            qs = parse_qs(urlparse(self.path).query)
+            pth = unquote((qs.get("path") or qs.get("p") or [""])[0])
+            refresh = (qs.get("refresh") or ["0"])[0] in ("1", "true", "yes")
+            return self._json(200, get_file_profile(pth, refresh=refresh))
+        if path in ("/v1/wiki/lines", "/v1/wiki/read_file_lines"):
+            from pocket.infinite_wiki import read_file_lines
+            from urllib.parse import unquote
+
+            qs = parse_qs(urlparse(self.path).query)
+            pth = unquote((qs.get("path") or qs.get("p") or [""])[0])
+            start = int((qs.get("start") or qs.get("s") or ["1"])[0])
+            end = (qs.get("end") or qs.get("e") or [None])[0]
+            end_i = int(end) if end not in (None, "") else None
+            return self._json(200, read_file_lines(pth, start, end_i))
+        if path in ("/v1/wiki/symbol", "/v1/wiki/find_symbol"):
+            from pocket.infinite_wiki import find_symbol
+            from urllib.parse import unquote
+
+            qs = parse_qs(urlparse(self.path).query)
+            name = unquote((qs.get("name") or qs.get("q") or [""])[0])
+            root = unquote((qs.get("root") or [""])[0])
+            return self._json(200, find_symbol(name, root=root))
+        if path in ("/v1/wiki/search"):
+            from pocket.infinite_wiki import search_profiles
+            from urllib.parse import unquote
+
+            qs = parse_qs(urlparse(self.path).query)
+            q = unquote((qs.get("q") or qs.get("query") or [""])[0])
+            return self._json(200, search_profiles(q))
+        if path.startswith("/v1/world-model/search") or path == "/v1/world/search":
+            from pocket.world_model import search as wm_search
+
+            # use module-level urlparse/parse_qs — never local-import (shadows + crashes do_GET)
+            qs = parse_qs(urlparse(self.path).query)
+            q = (qs.get("q") or qs.get("query") or [""])[0]
+            kind = (qs.get("kind") or ["all"])[0]
+            return self._json(200, wm_search(q, kind=kind, limit=int((qs.get("limit") or ["8"])[0])))
+        if path.startswith("/v1/dual/"):
+            from pocket.cortex_subcortex import get_job
+
+            jid = path.rstrip("/").split("/")[-1]
+            j = get_job(jid)
+            if not j:
+                return self._json(404, {"ok": False, "error": "dual job not found"})
+            return self._json(200, {"ok": True, **j})
+        if path in ("/v1/build-loops", "/v1/loops"):
+            from pocket.build_loop import list_loops
+
+            return self._json(200, {"ok": True, "loops": list_loops()})
+        if path.startswith("/v1/build-loops/") or path.startswith("/v1/loops/"):
+            from pocket.build_loop import get_loop
+
+            lid = path.rstrip("/").split("/")[-1]
+            m = get_loop(lid)
+            if not m:
+                return self._json(404, {"ok": False, "error": "loop not found"})
+            return self._json(200, {"ok": True, **m})
+        if path in ("/v1/custom-agents", "/v1/agents/custom"):
+            from pocket.custom_agents import list_agents, tools_catalog
+
+            return self._json(200, {"ok": True, "agents": list_agents(), "tools": tools_catalog().get("tools")})
+        if path in ("/v1/novae", "/v1/novae/status", "/v1/novae/list"):
+            from pocket.novae import status as novae_status
+
+            return self._json(200, novae_status())
+        if path.startswith("/v1/novae/"):
+            from pocket.novae import get_novae
+
+            nid = path.split("/v1/novae/", 1)[-1].split("/")[0]
+            if nid in ("activate", "deactivate", "status", "list"):
+                pass  # POST only
+            else:
+                n = get_novae(nid)
+                if not n:
+                    return self._json(404, {"ok": False, "error": "novae not found"})
+                return self._json(200, {"ok": True, **n})
         if path == "/v1/sessions":
             p = rbac_principal(self.headers)
             lim = int((q.get("limit") or ["40"])[0])
@@ -1530,6 +1851,8 @@ class Handler(BaseHTTPRequestHandler):
                     workspace=body.get("workspace") or "workspace",
                     api_key_id=self._api_key_id(),
                     sync=body.get("sync", True) is not False,
+                    cwd=body.get("cwd") or "",
+                    inject_wiki=body.get("inject_wiki", True) is not False,
                 ),
             )
         if path == "/v1/ai/route":
@@ -1556,6 +1879,8 @@ class Handler(BaseHTTPRequestHandler):
                     sync=False,
                     api_key_id=self._api_key_id(),
                     extra=body.get("extra") or "",
+                    cwd=body.get("cwd") or "",
+                    inject_wiki=body.get("inject_wiki", True) is not False,
                 ),
             )
         if path.startswith("/v1/ai/agents/") and path.endswith("/run"):
@@ -1907,9 +2232,393 @@ class Handler(BaseHTTPRequestHandler):
             )
             return self._json(200, {"ok": True, "path": str(path_md), "package": pkg})
 
+        if path in ("/v1/license/accept", "/v1/license/accept/"):
+            from pocket.license_gate import accept_response, LICENSE_ID
+
+            if not body.get("accept") and body.get("license") not in (None, "", LICENSE_ID):
+                # still allow explicit accept:true
+                pass
+            if body.get("accept") is False:
+                return self._json(400, {"ok": False, "error": "accept must be true"})
+            ip = self._client_ip()
+            ua = self.headers.get("User-Agent") or self.headers.get("user-agent") or ""
+            out = accept_response(ip=ip, user_agent=ua)
+            # Set cookie on response
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            if out.get("cookie"):
+                self.send_header("Set-Cookie", out["cookie"])
+            body_b = json.dumps({k: v for k, v in out.items() if k != "cookie"}).encode("utf-8")
+            self.send_header("Content-Length", str(len(body_b)))
+            self._sec_headers()
+            self.end_headers()
+            self.wfile.write(body_b)
+            return
+
+        if path in ("/v1/wsl/run", "/v1/wsl/ensure"):
+            from pocket.wsl_agent import ensure_workspace, run_wsl
+
+            p = rbac_principal(self.headers)
+            if not is_founder(p):
+                return self._json(
+                    403,
+                    {
+                        "ok": False,
+                        "error": "WSL native agent is founder-host only on this machine",
+                        "edition": "market",
+                    },
+                )
+            if path.endswith("/ensure"):
+                return self._json(200, ensure_workspace(body.get("distro") or ""))
+            out, err, eng = run_wsl(
+                body.get("prompt") or body.get("text") or body.get("cmd") or "status",
+                distro=body.get("distro") or "",
+                cwd=body.get("cwd") or "",
+                job_id=body.get("job_id") or "",
+            )
+            return self._json(
+                200,
+                {"ok": not bool(err), "output": out, "error": err, "engine": eng},
+            )
+
+        if path in ("/v1/build-loops", "/v1/loops", "/v1/use-cases/run", "/v1/usecases/run"):
+            from pocket.build_loop import manage_until_done, run_use_case, start_loop, stop_loop
+
+            p = rbac_principal(self.headers)
+            if (p.get("role") or "none") == "none":
+                return self._json(401, {"ok": False, "error": "auth required"})
+            owner = p.get("user") or "pocket"
+            wait = bool(body.get("wait") or body.get("until_done"))
+            timeout = float(body.get("timeout") or 120)
+            if body.get("stop") and body.get("id"):
+                return self._json(200, stop_loop(body.get("id"), reason=body.get("reason") or "api stop"))
+            uc = body.get("use_case") or body.get("usecase") or body.get("id") or ""
+            goal = body.get("goal") or body.get("prompt") or body.get("text") or ""
+            if path.endswith("/run") or uc:
+                started = run_use_case(uc or "fullstack_web_app", goal=goal, owner=owner)
+            else:
+                started = start_loop(
+                    goal or "Ship a real app",
+                    use_case=uc,
+                    template=body.get("template") or "web_static",
+                    loop_kind=body.get("loop") or body.get("loop_kind") or "ship",
+                    owner=owner,
+                    name=body.get("name") or "",
+                    max_retries=int(body.get("max_retries") or 3),
+                )
+            if not started.get("ok"):
+                return self._json(400, started)
+            if wait:
+                final = manage_until_done(started["id"], timeout_sec=timeout)
+                return self._json(200, {"ok": bool(final.get("ok")), "started": started, "final": final})
+            return self._json(200, started)
+
+        if path in ("/v1/dual", "/v1/cortex", "/v1/subcortex"):
+            from pocket.cortex_subcortex import start_dual
+
+            p = rbac_principal(self.headers)
+            if (p.get("role") or "none") == "none":
+                return self._json(401, {"ok": False, "error": "auth required"})
+            goal = body.get("goal") or body.get("prompt") or body.get("text") or ""
+            return self._json(
+                200,
+                start_dual(
+                    goal,
+                    session_id=body.get("session_id") or "",
+                    mode=body.get("mode") or "dialogue",
+                    wait_subcortex_ms=int(body.get("wait_ms") or 120),
+                ),
+            )
+
+        if path in ("/v1/dreams/now", "/v1/dream/now"):
+            from pocket.dream_mode import dream_once
+
+            p = rbac_principal(self.headers)
+            if (p.get("role") or "none") == "none":
+                return self._json(401, {"ok": False, "error": "auth required"})
+            return self._json(200, dream_once(force=True))
+        if path in ("/v1/dreams/start", "/v1/dreams/stop"):
+            from pocket.dream_mode import start as dream_start, stop as dream_stop
+
+            p = rbac_principal(self.headers)
+            if (p.get("role") or "none") == "none":
+                return self._json(401, {"ok": False, "error": "auth required"})
+            if path.endswith("stop"):
+                return self._json(200, dream_stop())
+            return self._json(200, dream_start(interval_sec=body.get("interval_sec")))
+
+        if path in ("/v1/duels", "/v1/duel"):
+            from pocket.agent_duels import duel
+
+            p = rbac_principal(self.headers)
+            if (p.get("role") or "none") == "none":
+                return self._json(401, {"ok": False, "error": "auth required"})
+            return self._json(
+                200,
+                duel(
+                    body.get("challenge") or body.get("prompt") or body.get("text") or "",
+                    contenders=body.get("contenders"),
+                ),
+            )
+
+        if path in ("/v1/capsules", "/v1/time-capsules"):
+            from pocket.time_capsules import cancel_capsule, create_capsule
+
+            p = rbac_principal(self.headers)
+            if (p.get("role") or "none") == "none":
+                return self._json(401, {"ok": False, "error": "auth required"})
+            if body.get("cancel") or body.get("id") and body.get("action") == "cancel":
+                return self._json(200, cancel_capsule(body.get("id") or body.get("cancel")))
+            return self._json(
+                200,
+                create_capsule(
+                    body.get("message") or body.get("text") or "",
+                    after_sec=int(body.get("after_sec") or body.get("in") or 0),
+                    at_ts=float(body.get("at_ts") or 0),
+                    file_changed=body.get("file_changed") or body.get("path") or "",
+                    idle_sec=int(body.get("idle_sec") or 0),
+                    keyword=body.get("keyword") or "",
+                    action=body.get("action") or "note",
+                    owner=p.get("user") or "pocket",
+                ),
+            )
+
+        if path in ("/v1/proofs/mint", "/v1/receipts/mint"):
+            from pocket.proof_chain import mint_receipt
+
+            p = rbac_principal(self.headers)
+            if (p.get("role") or "none") == "none":
+                return self._json(401, {"ok": False, "error": "auth required"})
+            return self._json(
+                200,
+                mint_receipt(
+                    body.get("kind") or "manual",
+                    body.get("summary") or body.get("text") or "manual receipt",
+                    meta=body.get("meta") or {},
+                ),
+            )
+
+        if path in ("/v1/swarm/start", "/v1/swarm/stop", "/v1/swarm/pulse", "/v1/swarm/config"):
+            from pocket.always_on_swarm import configure, pulse_now, start as swarm_start, stop as swarm_stop
+
+            p = rbac_principal(self.headers)
+            if (p.get("role") or "none") == "none":
+                return self._json(401, {"ok": False, "error": "auth required"})
+            if not is_founder(p) and path.endswith("/start"):
+                return self._json(403, {"ok": False, "error": "swarm start is founder-host only"})
+            if path.endswith("/stop"):
+                return self._json(200, swarm_stop())
+            if path.endswith("/pulse"):
+                return self._json(200, pulse_now())
+            if path.endswith("/config"):
+                return self._json(200, configure(**{k: body[k] for k in body if k in (
+                    "interval_sec", "max_parallel", "work_loops", "use_cases", "warm_dual", "world_model_tick"
+                )}))
+            return self._json(200, swarm_start(interval_sec=body.get("interval_sec")))
+
+        if path in ("/v1/work-types", "/v1/work-types/"):
+            from pocket.work_types import create_type
+
+            p = rbac_principal(self.headers)
+            if (p.get("role") or "none") == "none":
+                return self._json(401, {"ok": False, "error": "auth required"})
+            return self._json(
+                200,
+                create_type(
+                    name=body.get("name") or "Work",
+                    description=body.get("description") or "",
+                    engine=body.get("engine") or "plan",
+                    layer=body.get("layer") or "cortex",
+                    color=body.get("color") or "#10a37f",
+                    icon=body.get("icon") or "●",
+                    subcortex=body.get("subcortex"),
+                ),
+            )
+        if path in ("/v1/work-loops", "/v1/work-loops/generate"):
+            from pocket.work_types import create_loop, generate_from_goal
+
+            p = rbac_principal(self.headers)
+            if (p.get("role") or "none") == "none":
+                return self._json(401, {"ok": False, "error": "auth required"})
+            if path.endswith("generate") or body.get("goal") or body.get("from_prompt"):
+                return self._json(
+                    200,
+                    generate_from_goal(body.get("goal") or body.get("from_prompt") or body.get("prompt") or ""),
+                )
+            return self._json(
+                200,
+                create_loop(
+                    name=body.get("name") or "Loop",
+                    steps=body.get("steps"),
+                    description=body.get("description") or "",
+                    color=body.get("color") or "#10a37f",
+                    max_retries=int(body.get("max_retries") or 3),
+                    always_on_eligible=bool(body.get("always_on_eligible", True)),
+                    from_prompt=body.get("from_prompt") or "",
+                ),
+            )
+        if path in ("/v1/world-model/ingest", "/v1/world/ingest"):
+            from pocket.world_model import ingest_fact
+
+            p = rbac_principal(self.headers)
+            if (p.get("role") or "none") == "none":
+                return self._json(401, {"ok": False, "error": "auth required"})
+            return self._json(
+                200,
+                ingest_fact(
+                    body.get("subject") or "",
+                    body.get("predicate") or "",
+                    body.get("object") or body.get("obj") or "",
+                    source=body.get("source") or "user",
+                ),
+            )
+
+        if path in (
+            "/v1/wiki/profile",
+            "/v1/wiki/get_file_profile",
+            "/v1/wiki/lines",
+            "/v1/wiki/read_file_lines",
+            "/v1/wiki/symbol",
+            "/v1/wiki/find_symbol",
+            "/v1/wiki/goto",
+            "/v1/wiki/definition",
+            "/v1/wiki/search",
+            "/v1/wiki/index",
+            "/v1/wiki/reindex",
+            "/v1/wiki/inject",
+        ):
+            from pocket.infinite_wiki import (
+                find_symbol,
+                get_file_profile,
+                goto_definition,
+                index_tree,
+                inject_wiki_context,
+                read_file_lines,
+                reindex_if_stale,
+                search_profiles,
+            )
+
+            p = rbac_principal(self.headers)
+            if (p.get("role") or "none") == "none":
+                return self._json(401, {"ok": False, "error": "auth required"})
+            if path.endswith("index"):
+                return self._json(
+                    200,
+                    index_tree(
+                        body.get("root") or body.get("path") or "",
+                        label=body.get("label") or "",
+                        max_files=int(body.get("max_files") or 2000),
+                    ),
+                )
+            if path.endswith("reindex"):
+                return self._json(200, reindex_if_stale(body.get("path") or ""))
+            if path.endswith("inject"):
+                return self._json(
+                    200,
+                    {
+                        "ok": True,
+                        "prompt": inject_wiki_context(
+                            body.get("prompt") or body.get("text") or "",
+                            cwd=body.get("cwd") or "",
+                        ),
+                    },
+                )
+            if "profile" in path or path.endswith("get_file_profile"):
+                return self._json(
+                    200,
+                    get_file_profile(
+                        body.get("path") or body.get("file") or "",
+                        refresh=bool(body.get("refresh")),
+                    ),
+                )
+            if "lines" in path or path.endswith("read_file_lines"):
+                end_v = body.get("end") if body.get("end") is not None else body.get("e")
+                return self._json(
+                    200,
+                    read_file_lines(
+                        body.get("path") or body.get("file") or "",
+                        start=int(body.get("start") or body.get("s") or 1),
+                        end=int(end_v) if end_v is not None else None,
+                        max_lines=int(body.get("max_lines") or 200),
+                    ),
+                )
+            if path.endswith("goto") or path.endswith("definition"):
+                return self._json(
+                    200,
+                    goto_definition(
+                        body.get("name") or body.get("symbol") or body.get("q") or "",
+                        from_path=body.get("from_path") or body.get("path") or "",
+                    ),
+                )
+            if "symbol" in path:
+                return self._json(
+                    200,
+                    find_symbol(body.get("name") or body.get("q") or "", root=body.get("root") or ""),
+                )
+            if path.endswith("search"):
+                return self._json(200, search_profiles(body.get("q") or body.get("query") or ""))
+            return self._json(404, {"error": "wiki route"})
+
+        if path in ("/v1/custom-agents", "/v1/agents/custom"):
+            from pocket.custom_agents import create_agent, run_custom_agent
+
+            p = rbac_principal(self.headers)
+            if (p.get("role") or "none") == "none":
+                return self._json(401, {"ok": False, "error": "auth required"})
+            if body.get("run") or body.get("prompt"):
+                return self._json(
+                    200,
+                    run_custom_agent(
+                        body.get("id") or body.get("agent") or "AGENT",
+                        body.get("prompt") or body.get("text") or body.get("run") or "",
+                        cwd=body.get("cwd") or "",
+                    ),
+                )
+            return self._json(
+                200,
+                create_agent(
+                    name=body.get("name") or body.get("id") or "CustomAgent",
+                    role=body.get("role") or "",
+                    personality=body.get("personality") or "",
+                    tools=body.get("tools"),
+                    sub_agents=body.get("sub_agents") or body.get("subagents"),
+                    system=body.get("system") or "",
+                    owner=p.get("user") or "pocket",
+                ),
+            )
+
+        if path in ("/v1/novae/activate", "/v1/novae"):
+            from pocket.novae import activate as novae_activate, list_novae
+
+            if path == "/v1/novae" and self.command == "POST" and not (body.get("id") or body.get("novae")):
+                return self._json(200, {"ok": True, "agents": list_novae()})
+            p = rbac_principal(self.headers)
+            if (p.get("role") or "none") == "none":
+                return self._json(401, {"ok": False, "error": "auth required"})
+            nid = body.get("id") or body.get("novae") or body.get("name") or "GROK_NOVAE"
+            out = novae_activate(
+                nid,
+                owner=p.get("user") or "pocket",
+                edition="founder" if is_founder(p) else "market",
+                goal=body.get("goal") or body.get("prompt") or "",
+                host_power=bool(is_founder(p) and body.get("host_power", True)),
+            )
+            return self._json(200 if out.get("ok") else 400, out)
+        if path == "/v1/novae/deactivate":
+            from pocket.novae import deactivate as novae_deactivate
+
+            p = rbac_principal(self.headers)
+            if (p.get("role") or "none") == "none":
+                return self._json(401, {"ok": False, "error": "auth required"})
+            return self._json(
+                200,
+                novae_deactivate(body.get("id") or body.get("novae") or ""),
+            )
+
         if path == "/v1/sessions":
             from pocket.device import device_from_request
             from pocket.platform_space import ensure_job_isolation, tenant_cwd
+            from pocket.novae import _ws_root as novae_ws_root
 
             p = rbac_principal(self.headers)
             mode = body.get("mode") or "codex"
@@ -1920,6 +2629,18 @@ class Handler(BaseHTTPRequestHandler):
             owner = p.get("user") or "pocket"
             ws = body.get("workspace") or "workspace"
             cwd = body.get("cwd") or ""
+            # Novae modes always work in platform novae workspace (not founder home tree by default)
+            if (mode or "").lower().replace("-", "_") in (
+                "novae_grok",
+                "novae_codex",
+                "novae",
+            ):
+                nid = "GROK_NOVAE" if "codex" not in (mode or "").lower() else "CODEX_NOVAE"
+                if (mode or "").lower().replace("-", "_") == "novae_codex":
+                    nid = "CODEX_NOVAE"
+                nroot = novae_ws_root(nid)
+                ws = str(nroot)
+                cwd = str(nroot / ("code" if nid == "CODEX_NOVAE" else "files"))
             if not is_founder(p):
                 ws = f"tenant:{owner}"
                 cwd = tenant_cwd(owner, "files")
@@ -2019,6 +2740,30 @@ class Handler(BaseHTTPRequestHandler):
             job_prompt = text
             if should_inject_context(mode):
                 job_prompt = (agent_context_line(dev) + text)[:20000]
+            # Infinite Wiki: auto Profile Cards for paths/symbols (context-window saver)
+            if (mode or "").lower() in {
+                "codex",
+                "claude",
+                "grok",
+                "plan",
+                "novae_grok",
+                "novae_codex",
+                "novae",
+                "archon",
+                "build",
+                "wiki",
+                "infinite_wiki",
+                "codebase",
+            }:
+                try:
+                    from pocket.infinite_wiki import inject_wiki_context
+
+                    job_prompt = inject_wiki_context(
+                        job_prompt,
+                        cwd=body.get("cwd") or sess.get("cwd") or "",
+                    )[:20000]
+                except Exception:
+                    pass
             from pocket.platform_space import ensure_job_isolation
 
             job = create_job(

@@ -66,6 +66,18 @@ scripts\Start-POCKET-AlwaysOn.ps1
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+**POCKET Researcher License** (non-commercial research & evaluation) — see [LICENSE-RESEARCHER.md](LICENSE-RESEARCHER.md).  
+Downloads require license accept (`/download`). Commercial use needs a written license.
 
 **Lab:** ItsNotAI Labs / Medina Tech Labs
+
+## Docs & downloads
+
+| Path | What |
+|------|------|
+| `/docs/hub` | Documentation hub |
+| `/download` | Packages (researcher gate) |
+| `/license` | License summary |
+| `/phone` | Mobile web app |
+| `docs/wsl/WSL_NATIVE.md` | Native WSL agent story |
+| `REPOS.md` | Repository map |
