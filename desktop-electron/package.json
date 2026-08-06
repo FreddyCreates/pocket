@@ -1,62 +1,36 @@
 {
-  "name": "pocket-desktop",
+  "name": "@itsnotailabs/pocket-desktop",
   "productName": "POCKET",
-  "version": "2.1.0",
-  "description": "POCKET user client — pick team cloud or local host, then your seat",
+  "version": "3.0.0",
+  "description": "POCKET desktop: bundled local engine, Edge app, Cloudflare account, and paired execution",
   "main": "main.js",
-  "author": "ItsNotAI Labs",
-  "license": "MIT",
+  "author": "ItsNotAI Labs / Medina Tech Labs",
+  "license": "LicenseRef-POCKET-Researcher-1.0",
   "private": false,
   "scripts": {
     "start": "node run-electron.js",
+    "start:local": "node run-electron.js --local",
+    "start:cloud": "node run-electron.js --cloud",
+    "start:edge": "node run-electron.js --edge",
+    "check": "node --check main.js && node --check preload.js && node --check run-electron.js && node --check lib/host-manager.js && node --check lib/cloud-device.js && node --test test/*.test.js",
     "pack": "electron-builder --dir",
     "dist": "electron-builder --win portable nsis",
     "dist:arm64": "electron-builder --win portable nsis --arm64",
-    "dist:x64": "electron-builder --win portable nsis --x64",
-    "dist:portable": "electron-builder --win portable"
+    "dist:x64": "electron-builder --win portable nsis --x64"
   },
-  "devDependencies": {
-    "electron": "^33.2.0",
-    "electron-builder": "^25.1.8"
-  },
+  "devDependencies": { "electron": "^33.2.0", "electron-builder": "^25.1.8" },
   "build": {
     "appId": "com.medinatech.pocket",
     "productName": "POCKET",
-    "copyright": "Copyright © MedinaTech",
-    "directories": {
-      "output": "dist"
-    },
-    "files": [
-      "main.js",
-      "preload.js",
-      "onboarding.html",
-      "run-electron.js",
-      "package.json"
-    ],
+    "copyright": "Copyright © 2026 ItsNotAI Labs / Medina Tech Labs",
+    "directories": { "output": "dist" },
+    "files": ["main.js", "preload.js", "onboarding.html", "run-electron.js", "package.json", "lib/**/*"],
+    "extraResources": [{ "from": "dist-host/pocket-host.exe", "to": "host/pocket-host.exe" }],
+    "asar": true,
     "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
-        },
-        {
-          "target": "portable",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
-        }
-      ]
+      "artifactName": "POCKET-Desktop-${version}-${arch}.${ext}",
+      "target": [{ "target": "nsis", "arch": ["x64", "arm64"] }, { "target": "portable", "arch": ["x64", "arm64"] }]
     },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "POCKET"
-    }
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true, "createStartMenuShortcut": true, "shortcutName": "POCKET", "runAfterFinish": true }
   }
 }
