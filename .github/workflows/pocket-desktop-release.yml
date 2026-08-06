@@ -1,5 +1,11 @@
 name: POCKET Desktop Release
 on:
+  pull_request:
+    paths:
+      - 'desktop-electron/**'
+      - 'src/pocket/**'
+      - 'pyproject.toml'
+      - '.github/workflows/pocket-desktop-release.yml'
   workflow_dispatch:
   push:
     tags: ['pocket-v*']
