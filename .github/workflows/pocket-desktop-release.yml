@@ -4,7 +4,6 @@ on:
     paths:
       - 'desktop-electron/**'
       - 'src/pocket/**'
-      - 'pyproject.toml'
       - '.github/workflows/pocket-desktop-release.yml'
   workflow_dispatch:
   push:
@@ -28,10 +27,12 @@ jobs:
         with: { python-version: '3.12' }
       - uses: actions/setup-node@v4
         with: { node-version: '22' }
-      - name: Install Python product and packager
+      - name: Install packager and runtime dependencies
         run: |
           python -m pip install --upgrade pip pyinstaller
-          python -m pip install -e .
+          python -m pip install numpy requests pillow
+      - name: Verify src-layout server import
+        run: python -c "import sys; sys.path.insert(0, 'src'); import pocket.server; print('POCKET_SERVER_IMPORT_OK')"
       - name: Build native local host
         shell: powershell
         run: .\desktop-electron\scripts\Build-Host.ps1 -SkipInstall
