@@ -18,19 +18,53 @@
     "dist:arm64": "electron-builder --win portable nsis --arm64",
     "dist:x64": "electron-builder --win portable nsis --x64"
   },
-  "devDependencies": { "electron": "^33.2.0", "electron-builder": "^25.1.8" },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
   "build": {
     "appId": "com.medinatech.pocket",
     "productName": "POCKET",
     "copyright": "Copyright © 2026 ItsNotAI Labs / Medina Tech Labs",
-    "directories": { "output": "dist" },
-    "files": ["main.js", "preload.js", "onboarding.html", "run-electron.js", "package.json", "lib/**/*"],
-    "extraResources": [{ "from": "dist-host/pocket-host.exe", "to": "host/pocket-host.exe" }],
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "onboarding.html",
+      "run-electron.js",
+      "package.json",
+      "lib/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "dist-host/pocket-host.exe",
+        "to": "host/pocket-host.exe"
+      }
+    ],
     "asar": true,
     "win": {
       "artifactName": "POCKET-Desktop-${version}-${arch}.${ext}",
-      "target": [{ "target": "nsis", "arch": ["x64", "arm64"] }, { "target": "portable", "arch": ["x64", "arm64"] }]
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64", "arm64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64", "arm64"]
+        }
+      ]
     },
-    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true, "createStartMenuShortcut": true, "shortcutName": "POCKET", "runAfterFinish": true }
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "POCKET",
+      "runAfterFinish": true,
+      "include": "build/installer.nsh"
+    }
   }
 }
