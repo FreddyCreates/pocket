@@ -1,40 +1,460 @@
-/** POCKET Desktop 3: bundled local engine, Edge app, and Cloudflare account. */
-"use strict";
-const {app,BrowserWindow,Menu,Tray,dialog,ipcMain,nativeImage,safeStorage,shell,session}=require("electron");
-const fs=require("fs"),os=require("os"),path=require("path");const {spawn}=require("child_process");
-const {HostManager}=require("./lib/host-manager");const {CloudDevice,normalizeCloudUrl}=require("./lib/cloud-device");
-const packageJson=require("./package.json"),VERSION=packageJson.version,PORT=Number(process.env.POCKET_LOCAL_PORT||8787),LOCAL=`http://127.0.0.1:${PORT}`,DEFAULT_CLOUD=normalizeCloudUrl(process.env.POCKET_CLOUD_URL||"https://app.pocket.medinatechlabs.net");
-const CLI=new Set(process.argv.slice(1)),EDGE=CLI.has("--edge")||CLI.has("--edge-mode"),CLOUD=CLI.has("--cloud"),LOCAL_MODE=CLI.has("--local"),BACKGROUND=CLI.has("--background");
-const ROLE=["owner","operator"].includes(String(process.env.POCKET_CLIENT_ROLE||"").toLowerCase())?"operator":"user",OWNER=ROLE==="operator";
-app.setName(OWNER?"POCKET Owner":"POCKET");if(process.platform==="win32")app.setAppUserModelId(OWNER?"com.medinatech.pocket.owner":"com.medinatech.pocket");app.setPath("userData",path.join(app.getPath("appData"),OWNER?"POCKET-Owner":"POCKET"));
-let win=null,tray=null,manager=null,cloud=null,quitting=false;
-const configPath=()=>path.join(app.getPath("userData"),"pocket-client.json");
-const defaults=()=>({schema:"pocket.desktop.config.v3",role:ROLE,source:OWNER?"local":"cloud",cloudUrl:DEFAULT_CLOUD,localUrl:LOCAL,onboarded:OWNER,startAtLogin:OWNER,closeToTray:true});
-function readConfig(){const base=defaults();try{const x=JSON.parse(fs.readFileSync(configPath(),"utf8"));return{...base,...x,role:ROLE,localUrl:LOCAL,cloudUrl:normalizeCloudUrl(x.cloudUrl||base.cloudUrl)}}catch(_){return base}}
-function writeConfig(next){const base=defaults(),value={...base,...next,schema:base.schema,role:ROLE,localUrl:LOCAL,cloudUrl:normalizeCloudUrl(next.cloudUrl||base.cloudUrl),updatedAt:new Date().toISOString()};fs.mkdirSync(path.dirname(configPath()),{recursive:true});const tmp=configPath()+".tmp";fs.writeFileSync(tmp,JSON.stringify(value,null,2));fs.renameSync(tmp,configPath());return value}
-const origin=(c=readConfig())=>c.source==="local"?LOCAL:normalizeCloudUrl(c.cloudUrl),desk=(c=readConfig())=>origin(c)+"/desk";
-function trusted(raw,c=readConfig()){try{const u=new URL(raw);return u.origin===LOCAL||u.origin===normalizeCloudUrl(c.cloudUrl)}catch(_){return false}}
-function createManager(){return new HostManager({port:PORT,host:"127.0.0.1",userData:path.join(app.getPath("userData"),"host"),resourcesPath:process.resourcesPath,appRoot:process.env.POCKET_ROOT||path.resolve(__dirname,".."),isPackaged:app.isPackaged})}
-async function ensureHost(){manager||=createManager();return manager.ensure()}
-function edgeExe(){if(process.platform!=="win32")return"";return[path.join(process.env["ProgramFiles(x86)"]||"","Microsoft","Edge","Application","msedge.exe"),path.join(process.env.ProgramFiles||"","Microsoft","Edge","Application","msedge.exe"),path.join(process.env.LOCALAPPDATA||"","Microsoft","Edge","Application","msedge.exe")].find(x=>x&&fs.existsSync(x))||""}
-async function openEdge(url){const edge=edgeExe();if(!edge){await shell.openExternal(url);return{ok:true,fallback:"default-browser",url}}const child=spawn(edge,[`--app=${url}`,"--new-window"],{detached:true,stdio:"ignore"});child.unref();return{ok:true,engine:"microsoft-edge-app",url}}
-async function localJson(route,opt={}){await ensureHost();const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),Number(opt.timeoutMs||120000));try{const r=await fetch(LOCAL+route,{method:opt.method||"GET",headers:{...(opt.body?{"content-type":"application/json"}:{}),...(opt.token?{"x-pocket-token":opt.token}:{}),...(opt.apiKey?{authorization:`Bearer ${opt.apiKey}`}:{})},body:opt.body?JSON.stringify(opt.body):undefined,signal:controller.signal});const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(data.error?.message||data.error||`POCKET local HTTP ${r.status}`);return data}finally{clearTimeout(timer)}}
-async function localSessionToken(){const auth=await localJson("/v1/auth/local",{method:"POST",body:{}});if(!auth.token)throw new Error("The local POCKET engine did not issue a desktop session.");return auth.token}
-async function ensureDeviceKey(){if(!cloud)throw new Error("Cloud device is not initialized.");if(cloud.localApiKey())return cloud.localApiKey();const device=cloud.status().device;if(!device?.id)throw new Error("Pair this computer first.");const token=await localSessionToken();const made=await localJson("/v1/ai/keys",{method:"POST",token,body:{name:`cloud-${device.id.slice(-12)}`,owner:`cloud-device-${device.id.slice(-12)}`,tier:"starter",monthly_quota:10000}});if(!made.key)throw new Error("Restricted local API key was not issued.");cloud.setLocalApiKey(made.key);return made.key}
-async function executeCloudTask(task){const apiKey=await ensureDeviceKey(),input=task.input||{};if(task.kind==="chat"){const message=String(input.message||input.prompt||"").trim();if(!message)throw new Error("Cloud chat task is missing a message.");return localJson("/v1/ai/chat",{method:"POST",apiKey,timeoutMs:Number(input.timeout_ms||120000),body:{messages:[{role:"user",content:message}],agent:input.agent||"planner",workspace:`cloud-device-${task.device_id||"desktop"}`,sync:true}})}if(task.kind==="agent"){const agent=String(input.agent||"planner").replace(/[^a-z0-9_-]/gi,""),prompt=String(input.message||input.task||"").trim();if(!prompt)throw new Error("Cloud agent task is missing a task.");return localJson(`/v1/ai/agents/${encodeURIComponent(agent)}/run`,{method:"POST",apiKey,timeoutMs:Number(input.timeout_ms||180000),body:{task:prompt,workspace:`cloud-device-${task.device_id||"desktop"}`,sync:true}})}throw new Error(`Unsupported cloud task kind: ${task.kind}`)}
-function createCloud(c=readConfig()){cloud?.stop();cloud=new CloudDevice({baseUrl:normalizeCloudUrl(c.cloudUrl),safeStorage,version:VERSION,platform:`${process.platform}-${process.arch}`,storagePath:path.join(app.getPath("userData"),"cloud-device.json")});if(cloud.status().paired)cloud.start(executeCloudTask);return cloud}
-function loading(title,body){return"data:text/html,"+encodeURIComponent(`<!doctype html><meta charset=utf-8><style>body{margin:0;background:#09090b;color:#e4e4e7;font:15px/1.5 system-ui;display:grid;place-items:center;min-height:100vh}.card{max-width:620px;padding:38px;border:1px solid #2f3330;border-radius:18px;background:#141416}h1{color:#10a37f}p{color:#a1a1aa}</style><div class=card><h1>${title}</h1><p>${body}</p></div>`)}
-function createWindow(){win=new BrowserWindow({title:OWNER?"POCKET Owner":"POCKET",width:1440,height:920,minWidth:980,minHeight:680,backgroundColor:"#09090b",show:false,webPreferences:{preload:path.join(__dirname,"preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:true}});win.once("ready-to-show",()=>{if(!BACKGROUND){win.show();win.focus()}});win.on("close",e=>{if(!quitting&&readConfig().closeToTray){e.preventDefault();win.hide()}});win.webContents.setWindowOpenHandler(({url})=>{if(trusted(url))return{action:"allow"};if(/^https?:/.test(url))void shell.openExternal(url);return{action:"deny"}});win.webContents.on("will-navigate",(e,url)=>{if(!trusted(url)&&!url.startsWith("file:")&&!url.startsWith("data:")){e.preventDefault();void shell.openExternal(url)}});return win}
-async function openDesk(c=readConfig()){if(!win||win.isDestroyed())createWindow();if(c.source==="local"){await win.loadURL(loading("Starting POCKET","Opening the packaged local engine. A healthy engine is reused; unknown processes are never killed."));await ensureHost()}else await win.loadURL(loading("Opening POCKET Cloud","The account stays online independently of this computer. Paired execution appears when this desktop is available."));await win.loadURL(desk(c));return{ok:true,url:desk(c)}}
-function startAtLogin(enabled){const c=writeConfig({...readConfig(),startAtLogin:Boolean(enabled)});app.setLoginItemSettings({openAtLogin:c.startAtLogin,openAsHidden:true,path:process.execPath,args:app.isPackaged?["--background"]:[path.resolve(process.argv[1]||__dirname),"--background"]});return c.startAtLogin}
-function show(){if(!win||win.isDestroyed()){createWindow();void boot();return}if(win.isMinimized())win.restore();win.show();win.focus()}
-function makeTray(){if(tray)return tray;tray=new Tray(nativeImage.createEmpty());tray.setToolTip("POCKET");tray.setContextMenu(Menu.buildFromTemplate([{label:"Open POCKET",click:show},{label:"Open local Edge app",click:async()=>{await ensureHost();await openEdge(LOCAL+"/desk")}},{label:"Open cloud account",click:()=>void shell.openExternal(normalizeCloudUrl(readConfig().cloudUrl)+"/desk")},{type:"separator"},{label:"Quit",click:()=>{quitting=true;app.quit()}}]));tray.on("double-click",show);return tray}
-function menu(c=readConfig()){Menu.setApplicationMenu(Menu.buildFromTemplate([{label:"POCKET",submenu:[{label:"Open local desktop",click:async()=>{const n=writeConfig({...readConfig(),source:"local",onboarded:true});await openDesk(n)}},{label:"Open local Edge app",click:async()=>{await ensureHost();await openEdge(LOCAL+"/desk")}},{label:"Open cloud account",click:async()=>{const n=writeConfig({...readConfig(),source:"cloud",onboarded:true});await openDesk(n)}},{label:"Pair computer with cloud account…",click:()=>{writeConfig({...readConfig(),onboarded:false});void win?.loadFile(path.join(__dirname,"onboarding.html"))}},{type:"separator"},{label:"Start POCKET at sign-in",type:"checkbox",checked:Boolean(c.startAtLogin),click:i=>{startAtLogin(i.checked);menu(readConfig())}},{type:"separator"},{label:"Quit",click:()=>{quitting=true;app.quit()}}]},{label:"Help",submenu:[{label:"Get POCKET",click:()=>void shell.openExternal(normalizeCloudUrl(readConfig().cloudUrl)+"/get")},{label:"Product repository",click:()=>void shell.openExternal("https://github.com/ItsNotAILABS/pocket")},{label:`Version ${VERSION}`,enabled:false}]}]))}
-async function boot(){const c=readConfig();if(!c.onboarded&&!OWNER)return win.loadFile(path.join(__dirname,"onboarding.html"));return openDesk(c)}
-function permissions(s){s.setPermissionRequestHandler((wc,p,cb)=>{let o="";try{o=new URL(wc.getURL()).origin}catch(_){}cb(new Set([LOCAL,normalizeCloudUrl(readConfig().cloudUrl)]).has(o)&&["media","notifications","clipboard-sanitized-write"].includes(p))})}
-ipcMain.handle("pocket:getConfig",()=>readConfig());ipcMain.handle("pocket:getInfo",async()=>({version:VERSION,role:ROLE,packaged:app.isPackaged,cloudUrl:readConfig().cloudUrl,localUrl:LOCAL,host:manager?await manager.status():{baseUrl:LOCAL,healthy:false}}));ipcMain.handle("pocket:hostStatus",()=> (manager||=createManager()).status());ipcMain.handle("pocket:cloudDeviceStatus",()=> (cloud||createCloud()).status());
-ipcMain.handle("pocket:pairDevice",async(_e,code)=>{const c=readConfig();if(!cloud||cloud.baseUrl!==normalizeCloudUrl(c.cloudUrl))createCloud(c);const result=await cloud.pair(code,{name:`${os.hostname()} · POCKET`});await ensureDeviceKey();cloud.start(executeCloudTask);return{...result,localApiKeyConfigured:true}});ipcMain.handle("pocket:unpairDevice",()=> (cloud||createCloud()).unpair());
-ipcMain.handle("pocket:openMode",async(_e,p={})=>{const mode=p.mode==="local"?"local":"cloud",c=writeConfig({...readConfig(),source:mode,cloudUrl:p.cloudUrl||readConfig().cloudUrl,onboarded:true});menu(c);createCloud(c);await openDesk(c);return{ok:true,config:c}});ipcMain.handle("pocket:openEdge",async()=>{await ensureHost();return openEdge(LOCAL+"/desk")});ipcMain.handle("pocket:setStartAtLogin",(_e,x)=>({ok:true,enabled:startAtLogin(x)}));ipcMain.handle("pocket:openExternal",async(_e,raw)=>{const u=new URL(String(raw));if(u.protocol!=="https:")throw new Error("Only HTTPS links may be opened externally.");await shell.openExternal(u.toString());return{ok:true}});
-const lock=app.requestSingleInstanceLock({role:ROLE});if(!lock)app.quit();else app.on("second-instance",(_e,cmd)=>{const mode=cmd.includes("--local")?"local":cmd.includes("--cloud")?"cloud":null;if(mode)void openDesk(writeConfig({...readConfig(),source:mode,onboarded:true}));show()});
-app.whenReady().then(async()=>{manager=createManager();createCloud(readConfig());makeTray();permissions(session.defaultSession);menu(readConfig());if(BACKGROUND){if(readConfig().source==="local"||OWNER)await ensureHost().catch(console.error);return}if(EDGE){await ensureHost();await openEdge(LOCAL+"/desk");quitting=true;app.quit();return}createWindow();if(CLOUD||LOCAL_MODE){await openDesk(writeConfig({...readConfig(),source:LOCAL_MODE?"local":"cloud",onboarded:true}));return}await boot()}).catch(e=>{dialog.showErrorBox("POCKET",String(e.message||e));app.quit()});
-app.on("activate",show);app.on("window-all-closed",()=>{if(process.platform!=="darwin"&&quitting)app.quit()});app.on("before-quit",()=>{quitting=true;cloud?.stop()});
+/**
+ * POCKET Electron
+ * - Operator/Owner (POCKET_CLIENT_ROLE=operator): local host, no onboarding
+ * - User (POCKET_CLIENT_ROLE=user or packaged default): first-run source picker
+ * Separate userData per role so you can test both at once without clobbering config.
+ * Never kills a healthy host. Never stores passwords or seat keys.
+ */
+const { app, BrowserWindow, shell, ipcMain, Menu } = require("electron");
+const path = require("path");
+const fs = require("fs");
+const http = require("http");
+const https = require("https");
+const { spawn } = require("child_process");
+const { URL } = require("url");
+
+const PORT = 8787;
+/** Public demo default (not a secret). Operators can override via POCKET_PUBLIC_URL. */
+const DEFAULT_CLOUD =
+  (process.env.POCKET_PUBLIC_URL || "https://pocket.medinatechlabs.net").replace(
+    /\/$/,
+    ""
+  );
+
+let mainWindow = null;
+let hostProc = null;
+let quitting = false;
+
+// ---- Role + isolated profiles (must run before ready / single-instance) ----
+function envRole() {
+  const r = (process.env.POCKET_CLIENT_ROLE || "").toLowerCase().trim();
+  if (r === "operator" || r === "owner") return "operator";
+  if (r === "user") return "user";
+  return null; // packaged install → treat as user
+}
+
+const LAUNCH_ROLE = envRole() || "user";
+const IS_OPERATOR = LAUNCH_ROLE === "operator";
+
+if (app.setName) {
+  app.setName(IS_OPERATOR ? "POCKET Owner" : "POCKET");
+}
+if (process.platform === "win32" && app.setAppUserModelId) {
+  app.setAppUserModelId(
+    IS_OPERATOR ? "com.medinatech.pocket.owner" : "com.medinatech.pocket.user"
+  );
+}
+
+// Separate profiles so Owner + User can run / be tested without shared state
+try {
+  const base = app.getPath("appData");
+  const profile = IS_OPERATOR ? "POCKET-Owner" : "POCKET-User";
+  app.setPath("userData", path.join(base, profile));
+} catch (_) {
+  /* appData available before ready on Electron */
+}
+
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+}
+
+function configPath() {
+  return path.join(app.getPath("userData"), "pocket-client.json");
+}
+
+function defaultConfig() {
+  if (IS_OPERATOR) {
+    return {
+      role: "operator",
+      source: "local",
+      baseUrl: `http://127.0.0.1:${PORT}`,
+      onboarded: true,
+    };
+  }
+  return {
+    role: "user",
+    source: null,
+    baseUrl: null,
+    onboarded: false,
+    defaultCloud: DEFAULT_CLOUD,
+  };
+}
+
+function readConfig() {
+  try {
+    const p = configPath();
+    if (fs.existsSync(p)) {
+      const j = JSON.parse(fs.readFileSync(p, "utf8"));
+      // Launch role always wins over stale file (profile already isolates)
+      const base = defaultConfig();
+      return {
+        ...base,
+        ...j,
+        role: base.role,
+        defaultCloud: DEFAULT_CLOUD,
+      };
+    }
+  } catch (_) {}
+  return defaultConfig();
+}
+
+function writeConfig(cfg) {
+  const p = configPath();
+  fs.mkdirSync(path.dirname(p), { recursive: true });
+  // never store passwords or invite keys
+  const safe = {
+    role: IS_OPERATOR ? "operator" : "user",
+    source: cfg.source || null,
+    baseUrl: cfg.baseUrl || null,
+    onboarded: !!cfg.onboarded,
+    updatedAt: Date.now(),
+  };
+  fs.writeFileSync(p, JSON.stringify(safe, null, 2), "utf8");
+  return { ...safe, defaultCloud: DEFAULT_CLOUD };
+}
+
+function root() {
+  return process.env.POCKET_ROOT || path.resolve(__dirname, "..");
+}
+
+function py() {
+  const c = path.join(
+    process.env.LOCALAPPDATA || "",
+    "Programs",
+    "Python",
+    "Python311-arm64",
+    "python.exe"
+  );
+  return fs.existsSync(c) ? c : "python";
+}
+
+function healthLocal() {
+  return new Promise((resolve) => {
+    const req = http.get(
+      { hostname: "127.0.0.1", port: PORT, path: "/health", timeout: 2000 },
+      (res) => {
+        res.resume();
+        resolve(res.statusCode === 200);
+      }
+    );
+    req.on("error", () => resolve(false));
+    req.on("timeout", () => {
+      req.destroy();
+      resolve(false);
+    });
+  });
+}
+
+function probeUrl(baseUrl) {
+  return new Promise((resolve) => {
+    let u;
+    try {
+      u = new URL(baseUrl.replace(/\/$/, "") + "/health");
+    } catch {
+      resolve({ ok: false, error: "Invalid URL" });
+      return;
+    }
+    const lib = u.protocol === "https:" ? https : http;
+    const req = lib.get(
+      {
+        hostname: u.hostname,
+        port: u.port || (u.protocol === "https:" ? 443 : 80),
+        path: u.pathname,
+        timeout: 8000,
+        rejectUnauthorized: true,
+      },
+      (res) => {
+        res.resume();
+        // 200 health, or 401/403 still means host is up (auth in front)
+        const code = res.statusCode || 0;
+        resolve({
+          ok: code > 0 && code < 500,
+          status: code,
+          error: code >= 500 ? `HTTP ${code}` : null,
+        });
+      }
+    );
+    req.on("error", (e) => resolve({ ok: false, error: String(e.message || e) }));
+    req.on("timeout", () => {
+      req.destroy();
+      resolve({ ok: false, error: "Timeout reaching desk" });
+    });
+  });
+}
+
+function ensureLocalHost() {
+  return healthLocal().then((ok) => {
+    if (ok) return true;
+    if (hostProc && hostProc.exitCode == null) return waitLocal(40000);
+    const r = root();
+    const src = path.join(r, "src");
+    if (!fs.existsSync(path.join(src, "pocket"))) {
+      return false;
+    }
+    hostProc = spawn(
+      py(),
+      ["-u", "-m", "pocket", "serve", "--host", "0.0.0.0", "--port", String(PORT)],
+      {
+        cwd: r,
+        env: {
+          ...process.env,
+          PYTHONPATH: src,
+          POCKET_MESH_HOOK: "0",
+          POCKET_ALWAYS_MESH: "0",
+          POCKET_HEADLESS_AUTO: "0",
+          POCKET_AURO_TRAIN: "0",
+        },
+        windowsHide: true,
+        stdio: "ignore",
+      }
+    );
+    hostProc.on("exit", () => {
+      hostProc = null;
+    });
+    return waitLocal(40000);
+  });
+}
+
+async function waitLocal(ms) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < ms) {
+    if (await healthLocal()) return true;
+    await new Promise((r) => setTimeout(r, 400));
+  }
+  return healthLocal();
+}
+
+function deskUrl(cfg) {
+  const base = (cfg.baseUrl || `http://127.0.0.1:${PORT}`).replace(/\/$/, "");
+  return base + "/desk";
+}
+
+function loadOnboarding() {
+  const file = path.join(__dirname, "onboarding.html");
+  mainWindow.loadFile(file);
+}
+
+async function openDesk(cfg) {
+  const url = deskUrl(cfg);
+  if (cfg.source === "local" || /127\.0\.0\.1|localhost/.test(cfg.baseUrl || "")) {
+    const ok = await ensureLocalHost();
+    if (!ok) {
+      mainWindow.loadURL(
+        "data:text/html," +
+          encodeURIComponent(
+            `<body style="background:#09090b;color:#fff;font-family:system-ui;padding:40px">
+            <h1>Local host not running</h1>
+            <p>Could not start POCKET on this PC. Install the host product or pick Team/cloud desk.</p>
+            <p style="color:#a1a1aa">Menu → POCKET → Change desk source…</p>
+            </body>`
+          )
+      );
+      return { ok: false, error: "Local host failed to start" };
+    }
+  }
+  mainWindow.loadURL(url);
+  return { ok: true, url };
+}
+
+function buildMenu(cfg) {
+  const template = [
+    {
+      label: "POCKET",
+      submenu: [
+        {
+          label: "Open desk",
+          click: () => openDesk(readConfig()),
+        },
+        {
+          label: "Change desk source…",
+          enabled: !IS_OPERATOR,
+          click: () => {
+            const c = readConfig();
+            c.onboarded = false;
+            writeConfig(c);
+            loadOnboarding();
+          },
+        },
+        { type: "separator" },
+        {
+          label: IS_OPERATOR ? "Role: Owner / Operator" : "Role: User seat",
+          enabled: false,
+        },
+        {
+          label: "Reset user onboarding (this profile)",
+          enabled: !IS_OPERATOR,
+          click: () => {
+            writeConfig({
+              role: "user",
+              source: null,
+              baseUrl: null,
+              onboarded: false,
+            });
+            loadOnboarding();
+          },
+        },
+        { type: "separator" },
+        { role: "quit" },
+      ],
+    },
+    {
+      label: "Help",
+      submenu: [
+        {
+          label: "User hub (GitHub)",
+          click: () => shell.openExternal("https://github.com/FreddyCreates/pocket-app"),
+        },
+        {
+          label: "Product source",
+          click: () => shell.openExternal("https://github.com/FreddyCreates/pocket"),
+        },
+        {
+          label: "Multi-user seats",
+          click: () =>
+            shell.openExternal(
+              "https://github.com/FreddyCreates/pocket/blob/main/docs/MULTI_USER.md"
+            ),
+        },
+      ],
+    },
+  ];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
+// IPC for onboarding page (user profile only)
+ipcMain.handle("pocket:getConfig", () => readConfig());
+ipcMain.handle("pocket:defaults", () => ({
+  defaultCloud: DEFAULT_CLOUD,
+  role: LAUNCH_ROLE,
+  isOperator: IS_OPERATOR,
+}));
+ipcMain.handle("pocket:completeOnboarding", async (_e, payload) => {
+  if (IS_OPERATOR) {
+    return { ok: false, error: "Owner mode does not use onboarding" };
+  }
+  const source = (payload && payload.source) || "cloud";
+  let baseUrl = (payload && payload.baseUrl) || "";
+  if (source === "local") {
+    baseUrl = `http://127.0.0.1:${PORT}`;
+    const ok = await ensureLocalHost();
+    if (!ok) {
+      return { ok: false, error: "Could not start local POCKET host on this PC" };
+    }
+  } else {
+    baseUrl = String(baseUrl || "").replace(/\/$/, "");
+    if (!/^https?:\/\//i.test(baseUrl)) {
+      return { ok: false, error: "URL must start with https://" };
+    }
+    try {
+      const u = new URL(baseUrl);
+      if (!u.hostname) return { ok: false, error: "Invalid host" };
+      // store origin only
+      baseUrl = u.origin;
+    } catch {
+      return { ok: false, error: "Invalid URL" };
+    }
+    const probe = await probeUrl(baseUrl);
+    if (!probe.ok) {
+      return {
+        ok: false,
+        error: probe.error || "Desk not reachable — check URL / network",
+      };
+    }
+  }
+  const cfg = writeConfig({
+    role: "user",
+    source,
+    baseUrl,
+    onboarded: true,
+  });
+  buildMenu(cfg);
+  await openDesk(cfg);
+  return { ok: true, config: cfg };
+});
+
+app.whenReady().then(async () => {
+  mainWindow = new BrowserWindow({
+    title: IS_OPERATOR ? "POCKET Owner" : "POCKET",
+    width: 1360,
+    height: 880,
+    minWidth: 960,
+    minHeight: 640,
+    backgroundColor: "#09090b",
+    show: false,
+    autoHideMenuBar: false,
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  });
+  mainWindow.once("ready-to-show", () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:\/\/127\.0\.0\.1/.test(url) || /^https?:\/\/localhost/.test(url)) {
+      return { action: "allow" };
+    }
+    if (/^https?:/.test(url)) shell.openExternal(url);
+    return { action: "deny" };
+  });
+
+  const cfg = readConfig();
+  buildMenu(cfg);
+
+  // OWNER: never show source picker — local desk only
+  if (IS_OPERATOR) {
+    mainWindow.loadURL(
+      "data:text/html," +
+        encodeURIComponent(
+          `<body style="background:#09090b;color:#e4e4e7;font-family:system-ui;padding:48px">
+          <h1 style="color:#10a37f">POCKET Owner</h1>
+          <p>Starting local host…</p></body>`
+        )
+    );
+    mainWindow.show();
+    await openDesk({
+      role: "operator",
+      source: "local",
+      baseUrl: `http://127.0.0.1:${PORT}`,
+      onboarded: true,
+    });
+    return;
+  }
+
+  // USER: first open → source picker
+  if (!cfg.onboarded || !cfg.baseUrl) {
+    mainWindow.show();
+    loadOnboarding();
+    return;
+  }
+
+  // Returning user seat
+  mainWindow.show();
+  await openDesk(cfg);
+});
+
+app.on("window-all-closed", () => {
+  quitting = true;
+  // Do NOT kill host
+  app.quit();
+});
+
+app.on("activate", () => {
+  if (BrowserWindow.getAllWindows().length === 0 && !quitting) {
+    app.relaunch();
+  }
+});
