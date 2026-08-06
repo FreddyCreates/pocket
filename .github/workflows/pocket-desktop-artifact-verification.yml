@@ -1,0 +1,122 @@
+name: POCKET Desktop Artifact Verification
+
+on:
+  pull_request:
+    paths:
+      - "src/**"
+      - "desktop-electron/**"
+      - ".github/workflows/pocket-desktop-artifact-verification.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-artifacts:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: windows-latest
+            python_arch: x64
+          - arch: arm64
+            runner: windows-11-arm
+            python_arch: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          architecture: ${{ matrix.python_arch }}
+
+      - name: Install host packager and runtime dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if (Test-Path requirements.txt) { python -m pip install -r requirements.txt }
+          python -m pip install pyinstaller numpy pillow psutil requests cryptography
+          $env:PYTHONPATH = "$PWD\src"
+          python -c "import pocket; from pocket.server import serve; print('POCKET_IMPORT_OK')"
+
+      - name: Build packaged local host
+        env:
+          PYTHONPATH: ${{ github.workspace }}\src
+        run: ./desktop-electron/scripts/Build-Host.ps1
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: desktop-electron/package-lock.json
+
+      - name: Install desktop dependencies
+        working-directory: desktop-electron
+        run: npm ci
+
+      - name: Run desktop contract tests
+        working-directory: desktop-electron
+        run: npm run check
+
+      - name: Build installer portable app and Edge launchers
+        working-directory: desktop-electron
+        run: ./scripts/Package-Desktop.ps1 -Arch ${{ matrix.arch }}
+
+      - name: Verify packaged host starts independently
+        working-directory: desktop-electron
+        run: |
+          $hostProcess = Start-Process -FilePath "./dist-host/pocket-host.exe" -ArgumentList "--host", "127.0.0.1", "--port", "8787" -PassThru -WindowStyle Hidden
+          try {
+            $ready = $false
+            for ($i = 0; $i -lt 45; $i++) {
+              Start-Sleep -Milliseconds 500
+              try {
+                $health = Invoke-RestMethod -Uri "http://127.0.0.1:8787/health" -TimeoutSec 2
+                if ($health.ok -eq $true) { $ready = $true; break }
+              } catch {}
+            }
+            if (-not $ready) { throw "Packaged POCKET host did not become healthy" }
+          } finally {
+            if (-not $hostProcess.HasExited) { $hostProcess.Kill(); $hostProcess.WaitForExit() }
+          }
+
+      - name: Verify release artifact set
+        working-directory: desktop-electron
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $expected = @(
+            "dist/POCKET-Setup-$version-${{ matrix.arch }}.exe",
+            "dist/POCKET-Portable-$version-${{ matrix.arch }}.exe",
+            "dist/POCKET-Edge-${{ matrix.arch }}.cmd",
+            "dist/POCKET-Local-${{ matrix.arch }}.cmd",
+            "dist/POCKET-Cloud-${{ matrix.arch }}.cmd",
+            "dist/POCKET-Desktop-$version-${{ matrix.arch }}-SHA256.json"
+          )
+          foreach ($path in $expected) {
+            if (-not (Test-Path $path)) { throw "Missing POCKET artifact: $path" }
+          }
+          $manifest = Get-Content "dist/POCKET-Desktop-$version-${{ matrix.arch }}-SHA256.json" -Raw | ConvertFrom-Json
+          if ($manifest.artifacts.Count -ne 2) { throw "Hash manifest must contain setup and portable artifacts" }
+          if ($manifest.artifacts | Where-Object { -not $_.sha256 -or $_.sha256.Length -ne 64 }) { throw "Invalid SHA-256 manifest" }
+
+      - name: Upload verified desktop artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: POCKET-Desktop-3.0.0-${{ matrix.arch }}
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            desktop-electron/dist/POCKET-Setup-*.exe
+            desktop-electron/dist/POCKET-Portable-*.exe
+            desktop-electron/dist/POCKET-Edge-*.cmd
+            desktop-electron/dist/POCKET-Local-*.cmd
+            desktop-electron/dist/POCKET-Cloud-*.cmd
+            desktop-electron/dist/POCKET-Desktop-*-SHA256.json
+            desktop-electron/dist-host/pocket-host.exe
