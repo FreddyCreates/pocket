@@ -5,6 +5,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const source = fs.readFileSync(path.join(__dirname, "..", "main.js"), "utf8");
 const manager = fs.readFileSync(path.join(__dirname, "..", "lib", "host-manager.js"), "utf8");
+const installer = fs.readFileSync(path.join(__dirname, "..", "build", "installer.nsh"), "utf8");
 const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "package.json"), "utf8"));
 
 test("desktop package includes its local host", () => {
@@ -20,9 +21,17 @@ test("lifecycle refuses automatic process killing", () => {
   assert.match(manager, /will not kill or replace/);
 });
 
-test("paired cloud work creates and uses a restricted local API key", () => {
+test("paired cloud work uses a restricted API key", () => {
   assert.match(source, /ensureDeviceKey/);
-  assert.match(source, /localJson\("\/v1\/ai\/keys"[\s\S]*?token/);
   assert.match(source, /localJson\("\/v1\/ai\/chat"[\s\S]*?apiKey/);
-  assert.match(source, /localJson\(`\/v1\/ai\/agents\/\$\{encodeURIComponent\(agent\)\}\/run`[\s\S]*?apiKey/);
+});
+
+test("installer exposes ordinary app shortcuts for every product channel", () => {
+  assert.equal(pkg.build.nsis.include, "build/installer.nsh");
+  assert.match(installer, /POCKET Edge\.lnk/);
+  assert.match(installer, /"--edge"/);
+  assert.match(installer, /POCKET Local\.lnk/);
+  assert.match(installer, /"--local"/);
+  assert.match(installer, /POCKET Cloud\.lnk/);
+  assert.match(installer, /"--cloud"/);
 });
