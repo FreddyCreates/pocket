@@ -1,0 +1,75 @@
+name: POCKET Desktop Release
+on:
+  workflow_dispatch:
+  push:
+    tags: ['pocket-v*']
+permissions:
+  contents: write
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: windows-latest
+          - arch: arm64
+            runner: windows-11-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - name: Install Python product and packager
+        run: |
+          python -m pip install --upgrade pip pyinstaller
+          python -m pip install -e .
+      - name: Build native local host
+        shell: powershell
+        run: .\desktop-electron\scripts\Build-Host.ps1 -SkipInstall
+      - name: Smoke packaged host
+        shell: powershell
+        run: |
+          $p=Start-Process .\desktop-electron\dist-host\pocket-host.exe -ArgumentList '--host','127.0.0.1','--port','8799' -PassThru -WindowStyle Hidden
+          try {
+            $deadline=(Get-Date).AddSeconds(60)
+            do { Start-Sleep -Milliseconds 500; try { $h=Invoke-RestMethod http://127.0.0.1:8799/health -TimeoutSec 3 } catch {} } while (-not $h.ok -and (Get-Date) -lt $deadline)
+            if (-not $h.ok) { throw 'Packaged host health check failed' }
+          } finally { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
+      - name: Install Electron dependencies
+        working-directory: desktop-electron
+        run: npm install --no-fund --no-audit
+      - name: Desktop integrity gate
+        working-directory: desktop-electron
+        run: npm run check
+      - name: Build installer and portable app
+        working-directory: desktop-electron
+        run: npx electron-builder --win portable nsis --${{ matrix.arch }}
+      - name: Generate checksums
+        shell: powershell
+        run: |
+          Get-ChildItem desktop-electron\dist -File | Where-Object {$_.Extension -in '.exe','.yml','.blockmap'} | ForEach-Object {
+            "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(),$_.Name
+          } | Set-Content desktop-electron\dist\SHA256SUMS-${{ matrix.arch }}.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pocket-desktop-${{ matrix.arch }}
+          path: |
+            desktop-electron/dist/*.exe
+            desktop-electron/dist/*.yml
+            desktop-electron/dist/*.blockmap
+            desktop-electron/dist/SHA256SUMS-${{ matrix.arch }}.txt
+          if-no-files-found: error
+  github-release:
+    if: startsWith(github.ref, 'refs/tags/pocket-v')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: release-assets, merge-multiple: true }
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: release-assets/*
+          generate_release_notes: true

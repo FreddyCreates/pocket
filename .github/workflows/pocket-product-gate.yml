@@ -1,0 +1,49 @@
+name: POCKET Product Gate
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  source-integrity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Desktop syntax and contracts
+        working-directory: desktop-electron
+        run: |
+          node --check main.js
+          node --check preload.js
+          node --check run-electron.js
+          node --check lib/host-manager.js
+          node --check lib/cloud-device.js
+          node --test test/*.test.js
+          python -m py_compile host/entry.py
+      - name: Cloud Worker tests and dry run
+        working-directory: cloudflare/pocket-cloud
+        run: |
+          npm install --no-fund --no-audit
+          npm test
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('wrangler.jsonc')
+          p.write_text(p.read_text().replace('REPLACE_WITH_D1_DATABASE_ID','00000000-0000-0000-0000-000000000000'))
+          PY
+          npx wrangler deploy --dry-run --outdir .wrangler-dry-run
+      - name: Non-destructive lifecycle policy
+        shell: bash
+        run: |
+          ! grep -RniE 'taskkill|Stop-Process|process\.kill|KillPort' \
+            desktop-electron/main.js desktop-electron/lib \
+            scripts/Ensure-POCKET-Up.ps1 scripts/Start-POCKET-AlwaysOn.ps1 \
+            scripts/Open-POCKET-Edge.cmd scripts/Open-POCKET-Electron.cmd
+      - name: Product channel contract
+        run: |
+          grep -q 'POCKET Desktop' docs/POCKET_PRODUCT_CHANNELS_V3.md
+          grep -q 'POCKET Cloud Account' docs/POCKET_PRODUCT_CHANNELS_V3.md
+          grep -q 'POCKET Edge App' docs/POCKET_PRODUCT_CHANNELS_V3.md

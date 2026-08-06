@@ -1,66 +1,37 @@
-# Build POCKET Electron Windows packages and publish to /download
-# Usage (from pocket-os root):
-#   .\scripts\Build-POCKET-Desktop-Exe.ps1
-#   .\scripts\Build-POCKET-Desktop-Exe.ps1 -Arch arm64
-#   .\scripts\Build-POCKET-Desktop-Exe.ps1 -Arch x64
-
 param(
-  [ValidateSet("arm64", "x64", "both")]
-  [string]$Arch = "arm64",
-  [switch]$SkipInstall
+  [ValidateSet("auto", "x64", "arm64", "both")][string]$Arch = "auto",
+  [switch]$SkipInstall,
+  [switch]$SkipHostBuild
 )
-
 $ErrorActionPreference = "Stop"
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-$ElectronDir = Join-Path $Root "desktop-electron"
-$npm = Join-Path $env:ProgramFiles "nodejs\npm.cmd"
-if (-not (Test-Path $npm)) { $npm = "npm.cmd" }
-
-Write-Host "POCKET Desktop package build" -ForegroundColor Cyan
-Write-Host "  Root: $Root"
-Write-Host "  Arch: $Arch"
-
-Set-Location $ElectronDir
-
-if (-not $SkipInstall) {
-  if (-not (Test-Path ".\node_modules\electron-builder\package.json")) {
-    Write-Host "npm.cmd install (electron + electron-builder)..." -ForegroundColor Yellow
-    & cmd.exe /c "`"$npm`" install --no-fund --no-audit"
-    if ($LASTEXITCODE -ne 0) { throw "npm install failed" }
-  }
+$Desktop = Join-Path $Root "desktop-electron"
+$npm = (Get-Command npm.cmd -ErrorAction SilentlyContinue).Source
+if (-not $npm) { $npm = (Get-Command npm -ErrorAction Stop).Source }
+if ($Arch -eq "auto") {
+  $machine = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()
+  $Arch = if ($machine -match "arm64") { "arm64" } else { "x64" }
 }
-
-function Invoke-Dist([string]$a) {
-  Write-Host "electron-builder --win --$a ..." -ForegroundColor Green
-  # Use npx via cmd to avoid npm.ps1 Notepad issues
-  & cmd.exe /c "`"$npm`" exec -- electron-builder --win portable nsis --$a"
-  if ($LASTEXITCODE -ne 0) {
-    Write-Host "full target failed; trying portable only..." -ForegroundColor Yellow
-    & cmd.exe /c "`"$npm`" exec -- electron-builder --win portable --$a"
+if (-not $SkipHostBuild) {
+  $hostArgs = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $Desktop "scripts\Build-Host.ps1"))
+  if ($SkipInstall) { $hostArgs += "-SkipInstall" }
+  & powershell @hostArgs
+  if ($LASTEXITCODE -ne 0) { throw "POCKET host sidecar build failed" }
+}
+if (-not (Test-Path (Join-Path $Desktop "dist-host\pocket-host.exe"))) { throw "Packaged host is missing" }
+Push-Location $Desktop
+try {
+  if (-not $SkipInstall) { & $npm install --no-fund --no-audit; if ($LASTEXITCODE -ne 0) { throw "npm install failed" } }
+  & $npm run check; if ($LASTEXITCODE -ne 0) { throw "Desktop integrity gate failed" }
+  $arches = if ($Arch -eq "both") { @("x64", "arm64") } else { @($Arch) }
+  foreach ($a in $arches) {
+    & $npm exec -- electron-builder --win portable nsis "--$a"
     if ($LASTEXITCODE -ne 0) { throw "electron-builder failed for $a" }
   }
-}
-
-if ($Arch -eq "both") {
-  Invoke-Dist "arm64"
-  Invoke-Dist "x64"
-} else {
-  Invoke-Dist $Arch
-}
-
-$env:PYTHONPATH = Join-Path $Root "src"
-$py = "$env:LOCALAPPDATA\Programs\Python\Python311-arm64\python.exe"
-if (-not (Test-Path $py)) {
-  $py = "$env:LOCALAPPDATA\Programs\Python\Python311\python.exe"
-}
-if (-not (Test-Path $py)) { $py = "python.exe" }
-
-Write-Host "Publishing to releases/desktop (web /download)..." -ForegroundColor Cyan
-& $py -m pocket desktop-pack
-if ($LASTEXITCODE -ne 0) { throw "desktop-pack failed" }
-
-Write-Host ""
-Write-Host "Done. Download from:" -ForegroundColor Green
-Write-Host "  http://127.0.0.1:8787/download"
-Write-Host "  http://127.0.0.1:8787/download/desktop"
-Write-Host "  https://pocket.medinatechlabs.net/download  (when tunnel is up)"
+} finally { Pop-Location }
+$Release = Join-Path $Root "releases\desktop"
+New-Item -ItemType Directory -Force $Release | Out-Null
+Get-ChildItem (Join-Path $Desktop "dist") -File | Where-Object { $_.Extension -in ".exe", ".yml", ".blockmap" } | Copy-Item -Destination $Release -Force
+$files = Get-ChildItem $Release -File | ForEach-Object { @{ name=$_.Name; bytes=$_.Length; sha256=(Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower() } }
+@{ schema="pocket.desktop.release.v3"; version=(Get-Content (Join-Path $Desktop "package.json") -Raw | ConvertFrom-Json).version; arch=$Arch; generated_at=(Get-Date).ToUniversalTime().ToString("o"); files=@($files) } | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $Release "desktop-release.json") -Encoding UTF8
+Write-Host "POCKET_DESKTOP_RELEASE_READY $Release" -ForegroundColor Green

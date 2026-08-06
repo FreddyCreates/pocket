@@ -1,107 +1,13 @@
-# POCKET Always-On — keeps http://127.0.0.1:8787 up (required for Cloudflare)
+# Non-destructive watchdog: start only when absent; never terminate listeners.
 $ErrorActionPreference = "Continue"
-$Root = "C:\Users\Medin\OneDrive\pocket-os"
-$Src = Join-Path $Root "src"
-$LogDir = Join-Path $env:USERPROFILE ".pocket"
+$Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$Ensure = Join-Path $Root "scripts\Ensure-POCKET-Up.ps1"
+$LogDir = Join-Path $env:USERPROFILE ".pocket"; New-Item -ItemType Directory -Force $LogDir | Out-Null
 $Log = Join-Path $LogDir "alwayson.log"
-$RunBat = Join-Path $LogDir "run-pocket.cmd"
-New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
-
-$py = "C:\Users\Medin\AppData\Local\Programs\Python\Python311-arm64\python.exe"
-if (-not (Test-Path $py)) {
-  $c = Get-Command python -ErrorAction SilentlyContinue
-  if ($c) { $py = $c.Source } else { $py = "python" }
-}
-
-function Log([string]$m) {
-  $line = "[{0}] {1}" -f (Get-Date -Format "yyyy-MM-dd HH:mm:ss"), $m
-  Add-Content -Path $Log -Value $line -ErrorAction SilentlyContinue
-  Write-Host $line
-}
-
-function HealthOk {
-  try {
-    $r = Invoke-WebRequest "http://127.0.0.1:8787/" -UseBasicParsing -TimeoutSec 3
-    return ($r.StatusCode -eq 200)
-  } catch {
-    try {
-      $r2 = Invoke-RestMethod "http://127.0.0.1:8787/health" -TimeoutSec 3
-      return [bool]$r2.ok
-    } catch { return $false }
-  }
-}
-
-function KillPort8787 {
-  # ONLY used when we are sure the listener is dead/zombie — prefer not to kill
-  Log "WARNING: freeing port 8787 (zombie recovery only)"
-  Get-NetTCPConnection -LocalPort 8787 -State Listen -ErrorAction SilentlyContinue |
-    ForEach-Object {
-      try { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue } catch {}
-    }
-  Start-Sleep -Seconds 1
-}
-
-function Read-AccessEnv {
-  $user = "pocket"
-  $pass = ""
-  $f = Join-Path $LogDir "access.env"
-  if (-not (Test-Path $f)) { $f = Join-Path $Root ".pocket\access.env" }
-  if (Test-Path $f) {
-    Get-Content $f | ForEach-Object {
-      if ($_ -match "^\s*POCKET_BASIC_AUTH_USER=(.+)$") { $user = $Matches[1].Trim() }
-      if ($_ -match "^\s*POCKET_BASIC_AUTH_PASSWORD=(.+)$") { $pass = $Matches[1].Trim() }
-    }
-  }
-  if (-not $pass -and (Test-Path (Join-Path $LogDir "ACCESS.txt"))) {
-    $t = Get-Content (Join-Path $LogDir "ACCESS.txt") -Raw
-    if ($t -match "Password:\s*(\S+)") { $pass = $Matches[1] }
-  }
-  return @{ User = $user; Pass = $pass }
-}
-
-function StartPocket {
-  $cred = Read-AccessEnv
-  Log ("Starting POCKET py=$py user=$($cred.User)")
-  $lines = @(
-    "@echo off",
-    "cd /d `"$Root`"",
-    "set PYTHONPATH=$Src",
-    "set Path=C:\Users\Medin\.grok\bin;%Path%",
-    "set POCKET_PUBLIC_URL=https://pocket.medinatechlabs.net",
-    "set POCKET_BASIC_AUTH_USER=$($cred.User)",
-    "set POCKET_BASIC_AUTH_PASSWORD=$($cred.Pass)",
-    "`"$py`" -m pocket serve --host 0.0.0.0 --port 8787 >> `"$LogDir\pocket-serve.log`" 2>&1"
-  )
-  Set-Content -Path $RunBat -Value ($lines -join "`r`n") -Encoding ASCII
-  Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "`"$RunBat`"" -WindowStyle Hidden | Out-Null
-}
-
-Log "Always-On watchdog started (will NOT thrash a healthy host)"
-if (HealthOk) {
-  Log "HEART ok — already up, not restarting"
-} else {
-  $listening = [bool](Get-NetTCPConnection -LocalPort 8787 -State Listen -ErrorAction SilentlyContinue)
-  if ($listening) {
-    Log "Port listening but health failed — wait, do not kill cloudflared/host blindly"
-    Start-Sleep -Seconds 8
-  }
-  if (-not (HealthOk)) {
-    if ($listening) { KillPort8787 }  # only if still broken after wait
-    StartPocket
-    Start-Sleep -Seconds 5
-  }
-}
-if (HealthOk) { Log "HEART ok" } else { Log "HEART failed initial start — see pocket-serve.log" }
-
+function Write-Log($Message) { $line="[{0}] {1}" -f (Get-Date -Format "s"),$Message; Add-Content $Log $line; Write-Host $line }
+Write-Log "Non-destructive watchdog started"
 while ($true) {
-  if (HealthOk) {
-    # ok
-  } else {
-    Log "HEART STOPPED — restarting"
-    KillPort8787
-    StartPocket
-    Start-Sleep -Seconds 6
-    if (HealthOk) { Log "HEART RESTARTED" } else { Log "RESTART FAILED" }
-  }
-  Start-Sleep -Seconds 10
+  try { & powershell -NoProfile -ExecutionPolicy Bypass -File $Ensure | ForEach-Object { Write-Log $_ } }
+  catch { Write-Log "Ensure failed: $_" }
+  Start-Sleep -Seconds 20
 }
