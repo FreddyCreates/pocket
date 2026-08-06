@@ -5,91 +5,95 @@
 <h1 align="center">POCKET</h1>
 
 <p align="center">
-  <b>Company multi-agent host platform</b><br/>
+  <b>Company multi-agent workstation</b><br/>
   ItsNotAI Labs · Medina Tech Labs<br/>
-  Edge desk · team seats · Cloudflare · sellable API · your infrastructure
-</p>
-
-<p align="center">
-  <a href="https://github.com/ItsNotAILABS/pocket"><img alt="Org" src="https://img.shields.io/badge/org-ItsNotAILABS-0b6e4f?style=flat-square&logo=github"/></a>
-  <a href="https://github.com/ItsNotAILABS/pocket/releases"><img alt="Releases" src="https://img.shields.io/badge/releases-company-1d4ed8?style=flat-square"/></a>
-  <img alt="Edition" src="https://img.shields.io/badge/edition-company-10b981?style=flat-square"/>
+  Desktop app · Edge app · Cloudflare account · team seats · sellable API
 </p>
 
 ---
 
-## Company product (not a personal toy)
+## Product channels
 
-| | |
-|--|--|
-| **Company** | Medina Tech Labs |
-| **Lab** | ItsNotAI Labs |
-| **Org** | [ItsNotAILABS](https://github.com/ItsNotAILABS) |
-| **Edition** | **company** — team seats, RBAC, founder disk ≠ market seats |
-| **Host** | Your PC / server (sovereign) |
-| **Public desk** | `https://pocket.medinatechlabs.net` (when tunnel is up) |
+POCKET is no longer one development server exposed through a tunnel.
 
-### Isolation rule
+| Channel | Purpose |
+|---|---|
+| **POCKET Desktop** | Installable Electron app with a bundled local `pocket-host.exe`, Desktop/Start-menu shortcuts, tray mode, and optional start-at-login. |
+| **POCKET Edge App** | The same local engine in a Microsoft Edge app window for users who prefer the existing Edge surface. |
+| **POCKET Cloud Account** | Independent Cloudflare Worker + D1 + R2 account, organization, invitation, paired-device, task relay, and entitlement-gated download plane. |
 
-- **Owner / operator** — full host (ACCESS.txt)
-- **Team members** — invite seat (`pk_seat_…`), own username/password, sandbox only  
-- Market never browses the founder’s personal disk
+Read [POCKET Product Channels v3](docs/POCKET_PRODUCT_CHANNELS_V3.md).
 
----
+### Availability rule
 
-## Get it running (operator)
+- Opening Electron or the Edge launcher starts or reuses the packaged local engine.
+- A healthy engine is never restarted.
+- An unknown listener is never killed automatically.
+- The Cloudflare account stays online without depending on the operator's local port or Cloudflare Tunnel.
+- A paired desktop only needs to be online when a cloud task requires local execution.
+
+## Isolation
+
+- **Owner/operator** — full local founder host.
+- **Cloud organization members** — their own account and organization role.
+- **Local market members** — their own credentials and tenant sandbox.
+- A paired cloud device receives a restricted `sk_pocket_*` key, not the founder owner session.
+
+## Build POCKET Desktop
 
 ```powershell
-# One-time: shortcuts + always-on
-powershell -ExecutionPolicy Bypass -File scripts\Install-POCKET-Ship.ps1
-
-# Or start host now
-$env:PYTHONPATH = "$PWD\src"
-python -m pocket serve --host 0.0.0.0 --port 8787
+.\scripts\Build-POCKET-Desktop-Exe.ps1 -Arch auto
 ```
 
-Then open **Desktop → POCKET** (Edge app) or http://127.0.0.1:8787/desk
+Build both Windows architectures:
 
-**Owner login:** username `pocket` + password in `%USERPROFILE%\.pocket\ACCESS.txt`
+```powershell
+.\scripts\Build-POCKET-Desktop-Exe.ps1 -Arch both
+```
 
----
+Developer modes:
 
-## Surfaces
+```powershell
+cd desktop-electron
+npm install
+npm run start:local
+npm run start:cloud
+npm run start:edge
+```
+
+## Deploy POCKET Cloud
+
+Provision D1 and R2 once, configure `BOOTSTRAP_TOKEN` and `RELEASE_ADMIN_TOKEN`, then:
+
+```powershell
+$env:POCKET_D1_DATABASE_ID = "your-d1-id"
+.\scripts\Deploy-POCKET-Cloud.ps1
+```
+
+Validate the generated Worker URL before changing any existing tunnel or production DNS. See [POCKET Cloud Account](docs/POCKET_CLOUD_ACCOUNT.md).
+
+## Existing local surfaces
 
 | Surface | URL |
-|---------|-----|
+|---|---|
 | Desk | `/desk` |
 | Phone | `/phone` |
 | Overview | `/tour` |
-| Get / install | `/get` |
+| Get/install | `/get` |
 | API | `/developers` |
 | Health | `/health` |
-| Class / ready | `/v1/class` · `/v1/ready` |
+| Class/ready | `/v1/class` · `/v1/ready` |
 
----
+## Multi-user
 
-## Multi-user (company seats)
+Cloud organizations use D1-backed owner/admin/member/viewer memberships and expiring invite codes. The existing local host retains its separate seat system and founder/market isolation.
 
-```http
-POST /v1/admin/invites
-{ "label": "alice", "max_uses": 1 }
-→ invite_key pk_seat_…
-```
+See [docs/MULTI_USER.md](docs/MULTI_USER.md) and [docs/POCKET_PRODUCT_CHANNELS_V3.md](docs/POCKET_PRODUCT_CHANNELS_V3.md).
 
-Member: desk → **Create my seat** → their own credentials.
+## Evidence boundary
 
-See [docs/MULTI_USER.md](docs/MULTI_USER.md).
+A merged source branch is not proof of a live Cloudflare deployment or a downloadable Windows binary. Those claims require the protected deployment workflow, Windows release artifacts, checksums, and clean-install evidence in [docs/POCKET_RELEASE_RUNBOOK.md](docs/POCKET_RELEASE_RUNBOOK.md).
 
----
-
-## Real verification
-
-```powershell
-powershell -File scripts\real-product.ps1
-```
-
----
-
-## Repo
+## Repository
 
 https://github.com/ItsNotAILABS/pocket

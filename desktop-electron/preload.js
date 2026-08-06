@@ -1,17 +1,16 @@
-/**
- * User-facing client bridge only — no secrets, no fs, no shell.
- */
+"use strict";
 const { contextBridge, ipcRenderer } = require("electron");
-
 contextBridge.exposeInMainWorld("pocket", {
   platform: process.platform,
   shell: "electron",
-  version: "2.1.0",
-});
-
-contextBridge.exposeInMainWorld("pocketClient", {
   getConfig: () => ipcRenderer.invoke("pocket:getConfig"),
-  getDefaults: () => ipcRenderer.invoke("pocket:defaults"),
-  completeOnboarding: (payload) =>
-    ipcRenderer.invoke("pocket:completeOnboarding", payload || {}),
+  getInfo: () => ipcRenderer.invoke("pocket:getInfo"),
+  openMode: (payload) => ipcRenderer.invoke("pocket:openMode", payload || {}),
+  openEdge: () => ipcRenderer.invoke("pocket:openEdge"),
+  hostStatus: () => ipcRenderer.invoke("pocket:hostStatus"),
+  cloudDeviceStatus: () => ipcRenderer.invoke("pocket:cloudDeviceStatus"),
+  pairDevice: (code) => ipcRenderer.invoke("pocket:pairDevice", code),
+  unpairDevice: () => ipcRenderer.invoke("pocket:unpairDevice"),
+  setStartAtLogin: (enabled) => ipcRenderer.invoke("pocket:setStartAtLogin", Boolean(enabled)),
+  openExternal: (url) => ipcRenderer.invoke("pocket:openExternal", url),
 });

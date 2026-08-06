@@ -1,0 +1,14 @@
+{
+  "name": "@itsnotailabs/pocket-cloud",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "license": "LicenseRef-POCKET-Researcher-1.0",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "check": "node --check src/index.js && node --check public/app.js && node --test test/*.test.mjs && wrangler deploy --dry-run --outdir .wrangler-dry-run",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": { "wrangler": "^4.30.0" }
+}
